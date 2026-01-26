@@ -1,554 +1,768 @@
-void lcdBacklight_Wake(){
-    lcd.setBacklight(HIGH);
-    prevLCDBackLMillis = millis();
-}
-void lcdBacklight(){
-  unsigned long backLightInterval;
-  if(backlightSleepMode==0){prevLCDBackLMillis = millis();}                 //Set backlight var to sleep never
-  else if(backlightSleepMode==1){backLightInterval=10000;}                  //Set backlight var to sleep after 10 seconds without keypress 
-  else if(backlightSleepMode==2){backLightInterval=300000;}                 //Set backlight var to sleep after 5 minutes without keypress 
-  else if(backlightSleepMode==3){backLightInterval=3600000;}                //Set backlight var to sleep after 1 hour without keypress  
-  else if(backlightSleepMode==4){backLightInterval=21600000;}               //Set backlight var to sleep after 6 hours without keypress    
-  else if(backlightSleepMode==5){backLightInterval=43200000;}               //Set backlight var to sleep after 12 hours without keypress   
-  else if(backlightSleepMode==6){backLightInterval=86400000;}               //Set backlight var to sleep after 1 day without keypress 
-  else if(backlightSleepMode==7){backLightInterval=259200000;}              //Set backlight var to sleep after 3 days without keypress 
-  else if(backlightSleepMode==8){backLightInterval=604800000;}              //Set backlight var to sleep after 1 week without keypress  
-  else if(backlightSleepMode==9){backLightInterval=2419200000;}             //Set backlight var to sleep after 1 month without keypress    
+// ============================================
+// DISPLEJOVÝ SYSTÉM A MENU OVLÁDANIE
+// ============================================
 
-  if(backlightSleepMode>0 && settingMode==0){
-    currentLCDBackLMillis = millis();
-    if(currentLCDBackLMillis-prevLCDBackLMillis>=backLightInterval){        //Run routine every millisRoutineInterval (ms)
-      prevLCDBackLMillis = currentLCDBackLMillis;                           //Store previous time
-      lcd.setBacklight(LOW);                                                //Increment time counter
-    } 
-  }  
-}
-void padding100(int padVar){
-  if(padVar<10){lcd.print("  ");}
-  else if(padVar<100){lcd.print(" ");}
-}
-void padding10(int padVar){
-  if(padVar<10){lcd.print(" ");}
-}
-void displayConfig1(){
-  lcd.setCursor(0,0);lcd.print(powerInput,0);lcd.print("W");padding100(powerInput);      
-  lcd.setCursor(5,0);
-  if(Wh<10){lcd.print(Wh,3);lcd.print("Wh ");}                 //9.999Wh_
-  else if(Wh<100){lcd.print(Wh,2);lcd.print("Wh ");}           //99.99Wh_
-  else if(Wh<1000){lcd.print(Wh,1);lcd.print("Wh ");}          //999.9Wh_
-  else if(Wh<10000){lcd.print(kWh,2);lcd.print("kWh ");}       //9.99kWh_
-  else if(Wh<100000){lcd.print(kWh,1);lcd.print("kWh ");}      //99.9kWh_
-  else if(Wh<1000000){lcd.print(kWh,0);lcd.print("kWh  ");}    //999kWh__
-  else if(Wh<10000000){lcd.print(MWh,2);lcd.print("MWh ");}    //9.99MWh_
-  else if(Wh<100000000){lcd.print(MWh,1);lcd.print("MWh ");}   //99.9MWh_ 
-  else if(Wh<1000000000){lcd.print(MWh,0);lcd.print("MWh  ");} //999MWh__
-  lcd.setCursor(13,0);lcd.print(daysRunning,0); 
-  lcd.setCursor(0,1);lcd.print(batteryPercent);lcd.print("%");padding100(batteryPercent);
-  if(BNC==0){lcd.setCursor(5,1); lcd.print(voltageOutput,1);lcd.print("V");padding10(voltageOutput);}
-  else{lcd.setCursor(5,1);lcd.print("NOBAT ");}          
-  lcd.setCursor(11,1);lcd.print(currentOutput,1);lcd.print("A");padding10(currentOutput);     
-}
-void displayConfig2(){
-  lcd.setCursor(0,0); lcd.print(powerInput,0);  lcd.print("W");padding100(powerInput);    
-  lcd.setCursor(5,0); lcd.print(voltageInput,1);lcd.print("V");padding10(voltageInput);            
-  lcd.setCursor(11,0);lcd.print(currentInput,1);lcd.print("A");padding10(currentInput);    
-  lcd.setCursor(0,1); lcd.print(batteryPercent);lcd.print("%");padding100(batteryPercent); 
-  if(BNC==0){lcd.setCursor(5,1); lcd.print(voltageOutput,1);lcd.print("V");padding10(voltageOutput);}
-  else{lcd.setCursor(5,1);lcd.print("NOBAT");}
-  lcd.setCursor(11,1);lcd.print(currentOutput,1);lcd.print("A");padding10(currentOutput);    
-}
-void displayConfig3(){
-  lcd.setCursor(0,0);  lcd.print(powerInput,0);lcd.print("W");padding100(powerInput); 
-  lcd.setCursor(5,0);
-  if(Wh<10){lcd.print(Wh,2);lcd.print("Wh ");}                 //9.99Wh_
-  else if(Wh<100){lcd.print(Wh,1);lcd.print("Wh ");}           //99.9Wh_
-  else if(Wh<1000){lcd.print(Wh,0);lcd.print("Wh  ");}         //999Wh__
-  else if(Wh<10000){lcd.print(kWh,1);lcd.print("kWh ");}       //9.9kWh_
-  else if(Wh<100000){lcd.print(kWh,0);lcd.print("kWh  ");}     //99kWh__
-  else if(Wh<1000000){lcd.print(kWh,0);lcd.print("kWh ");}     //999kWh_
-  else if(Wh<10000000){lcd.print(MWh,1);lcd.print("MWh ");}    //9.9MWh_
-  else if(Wh<100000000){lcd.print(MWh,0);lcd.print("MWh  ");}  //99MWh__
-  else if(Wh<1000000000){lcd.print(MWh,0);lcd.print("MWh ");}  //999Mwh_
-  lcd.setCursor(12,0);lcd.print(batteryPercent);lcd.print("%");padding100(batteryPercent);
-  int batteryPercentBars;
-  batteryPercentBars = batteryPercent/6.18; //6.25 proper value
-  lcd.setCursor(0,1);
-  for(int i=0;i<batteryPercentBars;i++){lcd.print((char)255);} //Battery Bar Blocks    
-  for(int i=0;i<16-batteryPercentBars;i++){lcd.print(" ");}    //Battery Blanks
-}
-void displayConfig4(){
-  lcd.setCursor(0,0);lcd.print("TEMPERATURE STAT");
-  lcd.setCursor(0,1);lcd.print(temperature);lcd.print((char)223);lcd.print("C");padding100(temperature);
-  lcd.setCursor(8,1);lcd.print("FAN");
-  lcd.setCursor(12,1);
-  if(fanStatus==1){lcd.print("ON ");}
-  else{lcd.print("OFF");}
-}
-void displayConfig5(){
-  lcd.setCursor(0,0);lcd.print(" SETTINGS MENU  ");
-  lcd.setCursor(0,1);lcd.print("--PRESS SELECT--");
+#include <U8g2lib.h>  // Knižnica pre OLED displej
+
+// ============================================
+// KONFIGURÁCIA DISPLEJA
+// ============================================
+
+// Inicializácia displeja (SSD1306 128x64)
+U8G2_SSD1306_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0, U8X8_PIN_NONE);
+
+// Menu stav
+enum MenuState {
+  MENU_MAIN,           // Hlavné menu
+  MENU_STATUS,         // Stavový displej
+  MENU_CHARGING,       // Detaily nabíjania
+  MENU_STATS,          // Štatistiky
+  MENU_SETTINGS,       // Nastavenia
+  MENU_BATTERY_SETUP,  // Nastavenie batérie
+  MENU_SYSTEM_INFO,    // Informácie o systéme
+  MENU_DIAGNOSTICS,    // Diagnostika
+  MENU_CALIBRATION     // Kalibrácia
+};
+
+MenuState currentMenu = MENU_STATUS;
+MenuState previousMenu = MENU_STATUS;
+
+// Navigácia v menu
+int menuCursor = 0;
+int menuScroll = 0;
+const int MAX_MENU_ITEMS = 8;
+
+// Tlačidlá
+#define BUTTON_UP_PIN     32
+#define BUTTON_DOWN_PIN   33
+#define BUTTON_ENTER_PIN  25
+#define BUTTON_BACK_PIN   26
+
+// Stav tlačidiel
+bool buttonUpPressed = false;
+bool buttonDownPressed = false;
+bool buttonEnterPressed = false;
+bool buttonBackPressed = false;
+
+// Časové premenné pre debouncing
+unsigned long lastButtonPress = 0;
+const unsigned long DEBOUNCE_DELAY = 50;
+
+// ============================================
+// INICIALIZÁCIA DISPLEJA A TLAČIDIEL
+// ============================================
+
+void initLCDMenu() {
+  Serial.println("Inicializácia displeja a menu...");
+  
+  // Inicializácia displeja
+  u8g2.begin();
+  u8g2.setFont(u8g2_font_6x10_tf);  // Štandardné písmo
+  u8g2.setFontRefHeightExtendedText();
+  u8g2.setDrawColor(1);
+  u8g2.setFontPosTop();
+  
+  // Inicializácia tlačidiel
+  pinMode(BUTTON_UP_PIN, INPUT_PULLUP);
+  pinMode(BUTTON_DOWN_PIN, INPUT_PULLUP);
+  pinMode(BUTTON_ENTER_PIN, INPUT_PULLUP);
+  pinMode(BUTTON_BACK_PIN, INPUT_PULLUP);
+  
+  // Úvodná obrazovka
+  showSplashScreen();
+  
+  Serial.println("Displej a menu inicializované");
 }
 
-void factoryResetMessageLCD(){
-  lcd.setCursor(0,0);lcd.print("  FACTORY RESET ");
-  lcd.setCursor(0,1);lcd.print("   SUCCESSFUL   ");
-  delay(1000);
-}
-void savedMessageLCD(){
-//  lcd.setCursor(0,0);lcd.print(" SETTINGS SAVED ");
-//  lcd.setCursor(0,1);lcd.print(" SUCCESSFULLY   ");
-//  delay(500);
-//  lcd.clear();
-}
-void cancelledMessageLCD(){
-//  lcd.setCursor(0,0);lcd.print(" SETTINGS       ");
-//  lcd.setCursor(0,1);lcd.print(" CANCELLED      ");
-//  delay(500);
-//  lcd.clear();
+void showSplashScreen() {
+  u8g2.clearBuffer();
+  u8g2.setFont(u8g2_font_10x20_tf);
+  
+  // Nadpis
+  u8g2.drawStr(10, 10, "MPPT");
+  u8g2.drawStr(10, 30, "REGULATOR");
+  
+  // Verzia
+  u8g2.setFont(u8g2_font_6x10_tf);
+  u8g2.drawStr(30, 50, "Verzia 1.0");
+  
+  u8g2.sendBuffer();
+  delay(2000);
 }
 
-////////////////////////////////////////////  MAIN LCD MENU CODE /////////////////////////////////////////////
-void LCD_Menu(){
-  int 
-  menuPages          = 4,
-  subMenuPages       = 12,
-  longPressTime      = 3000,
-  longPressInterval  = 500,
-  shortPressInterval = 100;
+// ============================================
+// SPRACOVANIE TLAČIDIEL
+// ============================================
 
-  //SETTINGS MENU
-  if(settingMode==1){
-    chargingPause = 1;
-
-    //BUTTON KEYPRESS
-    if(setMenuPage==0){
-      if(digitalRead(buttonRight)==1){subMenuPage++;}
-      if(digitalRead(buttonLeft)==1) {subMenuPage--;}
-      if(digitalRead(buttonBack)==1) {settingMode=0;subMenuPage=0;}  //bool engage, main menu int page
-      if(digitalRead(buttonSelect)==1){setMenuPage=1;} //enter sub menu settings - bool engage 
-      lcdBacklight_Wake();
-      while(digitalRead(buttonRight)==1||digitalRead(buttonLeft)==1    
-      ||digitalRead(buttonBack)==1||digitalRead(buttonSelect)==1){}
-    } 
-    //SUB MENU PAGE CYCLING
-    if(subMenuPage>subMenuPages){subMenuPage=0;}                     
-    else if(subMenuPage<0){subMenuPage=subMenuPages;}  
-    //--------------------------- SETTINGS MENU PAGES: ---------------------------// 
-    ///// SETTINGS MENU ITEM: SUPPLY ALGORITHM SELECT /////
-    if(subMenuPage==0){
-      lcd.setCursor(0,0);lcd.print("SUPPLY ALGORITHM");
-      if(setMenuPage==1){lcd.setCursor(0,1);lcd.print(" >");}
-      else{lcd.setCursor(0,1);lcd.print("= ");}
-      if(MPPT_Mode==1){lcd.print("MPPT + CC-CV  ");}
-      else{lcd.print("CC-CV ONLY    ");}
-
-      //SET MENU - BOOLTYPE
-      if(setMenuPage==0){boolTemp = MPPT_Mode;}
-      else{
-        if(digitalRead(buttonRight)==1||digitalRead(buttonLeft)==1){
-          while(digitalRead(buttonRight)==1||digitalRead(buttonLeft)==1){}
-          if(MPPT_Mode==1){MPPT_Mode=0;}else{MPPT_Mode=1;}
-        }
-        if(digitalRead(buttonBack)==1){while(digitalRead(buttonBack)==1){}MPPT_Mode = boolTemp;cancelledMessageLCD();setMenuPage=0;} 
-        if(digitalRead(buttonSelect)==1){while(digitalRead(buttonSelect)==1){}saveSettings();setMenuPage=0;savedMessageLCD();}
-      }     
-    }
-
-    ///// SETTINGS MENU ITEM: CHARER/PSU MODE /////
-    else if(subMenuPage==1){
-      lcd.setCursor(0,0);lcd.print("CHARGER/PSU MODE");
-      if(setMenuPage==1){lcd.setCursor(0,1);lcd.print(" >");}
-      else{lcd.setCursor(0,1);lcd.print("= ");}
-      if(output_Mode==1){lcd.print("CHARGER MODE  ");}
-      else{lcd.print("PSU MODE      ");}
-
-      //SET MENU - BOOLTYPE
-      if(setMenuPage==0){boolTemp = output_Mode;}
-      else{
-        if(digitalRead(buttonRight)==1||digitalRead(buttonLeft)==1){
-          while(digitalRead(buttonRight)==1||digitalRead(buttonLeft)==1){}
-          if(output_Mode==1){output_Mode=0;}else{output_Mode=1;}
-        }
-        if(digitalRead(buttonBack)==1){while(digitalRead(buttonBack)==1){}output_Mode = boolTemp;cancelledMessageLCD();setMenuPage=0;} 
-        if(digitalRead(buttonSelect)==1){while(digitalRead(buttonSelect)==1){}saveSettings();setMenuPage=0;savedMessageLCD();}
-      }     
-    }
-
-    
-    ///// SETTINGS MENU ITEM: MAX BATTERY V /////
-    else if(subMenuPage==2){
-      lcd.setCursor(0,0);lcd.print("MAX BATTERY V   ");
-      if(setMenuPage==1){lcd.setCursor(0,1);lcd.print(" >");}
-      else{lcd.setCursor(0,1);lcd.print("= ");}
-      lcd.setCursor(2,1);lcd.print(voltageBatteryMax,2);lcd.print("V");  
-      lcd.print("                ");  
-
-      //SET MENU - FLOATTYPE
-      if(setMenuPage==0){floatTemp = voltageBatteryMax;}
-      else{
-        if(digitalRead(buttonBack)==1){while(digitalRead(buttonBack)==1){}voltageBatteryMax = floatTemp;cancelledMessageLCD();setMenuPage=0;} 
-        if(digitalRead(buttonSelect)==1){while(digitalRead(buttonSelect)==1){}saveSettings();setMenuPage=0;savedMessageLCD();}     
-        currentMenuSetMillis = millis();
-        if(digitalRead(buttonRight)==1){                                                    //Right button press (increments setting values)
-          while(digitalRead(buttonRight)==1){
-            if(millis()-currentMenuSetMillis>longPressTime){                                //Long Press     
-              voltageBatteryMax += 1.00;                                                    //Increment by 1
-              voltageBatteryMax = constrain(voltageBatteryMax,vOutSystemMin,vOutSystemMax); //Limit settings values to a range
-              lcd.setCursor(2,1);lcd.print(voltageBatteryMax,2);delay(longPressInterval);   //Display settings data                               
-            }
-            else{                                                                           //Short Press  
-              voltageBatteryMax += 0.01;                                                    //Increment by 0.01
-              voltageBatteryMax = constrain(voltageBatteryMax,vOutSystemMin,vOutSystemMax); //Limit settings values to a range
-              lcd.setCursor(2,1);lcd.print(voltageBatteryMax,2);delay(shortPressInterval);  //Display settings data                            
-            }  
-            lcd.print("V   ");                                                              //Display unit
-          } 
-        }
-        else if(digitalRead(buttonLeft)==1){                                                //Left button press (decrements setting values)
-          while(digitalRead(buttonLeft)==1){
-            if(millis()-currentMenuSetMillis>longPressTime){                                //Long Press     
-              voltageBatteryMax -= 1.00;                                                    //Increment by 1
-              voltageBatteryMax = constrain(voltageBatteryMax,vOutSystemMin,vOutSystemMax); //Limit settings values to a range
-              lcd.setCursor(2,1);lcd.print(voltageBatteryMax,2);delay(longPressInterval);   //Display settings data                               
-            }
-            else{                                                                            //Short Press  
-              voltageBatteryMax -= 0.01;                                                     //Increment by 0.01
-              voltageBatteryMax =  constrain(voltageBatteryMax,vOutSystemMin,vOutSystemMax); //Limit settings values to a range
-              lcd.setCursor(2,1);lcd.print(voltageBatteryMax,2);delay(shortPressInterval);   //Display settings data                                      
-            } 
-            lcd.print("V   ");                                                               //Display unit
-          } 
-        }
-      }    
-    }
-    ///// SETTINGS MENU ITEM: MIN BATTERY V /////
-    else if(subMenuPage==3){
-      lcd.setCursor(0,0);lcd.print("MIN BATTERY V   ");
-      if(setMenuPage==1){lcd.setCursor(0,1);lcd.print(" >");}
-      else{lcd.setCursor(0,1);lcd.print("= ");}
-      lcd.setCursor(2,1);lcd.print(voltageBatteryMin,2);lcd.print("V");  
-      lcd.print("                ");  
-
-      //SET MENU - FLOATTYPE
-      if(setMenuPage==0){floatTemp = voltageBatteryMin;}
-      else{
-        if(digitalRead(buttonBack)==1){while(digitalRead(buttonBack)==1){}voltageBatteryMin = floatTemp;cancelledMessageLCD();setMenuPage=0;} 
-        if(digitalRead(buttonSelect)==1){while(digitalRead(buttonSelect)==1){}saveSettings();setMenuPage=0;savedMessageLCD();}     
-        currentMenuSetMillis = millis();
-        if(digitalRead(buttonRight)==1){                                                    //Right button press (increments setting values)
-          while(digitalRead(buttonRight)==1){
-            if(millis()-currentMenuSetMillis>longPressTime){                                //Long Press     
-              voltageBatteryMin += 1.00;                                                    //Increment by 1
-              voltageBatteryMin = constrain(voltageBatteryMin,vOutSystemMin,vOutSystemMax); //Limit settings values to a range
-              lcd.setCursor(2,1);lcd.print(voltageBatteryMin,2);delay(longPressInterval);   //Display settings data                               
-            }
-            else{                                                                           //Short Press  
-              voltageBatteryMin += 0.01;                                                    //Increment by 0.01
-              voltageBatteryMin = constrain(voltageBatteryMin,vOutSystemMin,vOutSystemMax); //Limit settings values to a range
-              lcd.setCursor(2,1);lcd.print(voltageBatteryMin,2);delay(shortPressInterval);  //Display settings data                            
-            }  
-            lcd.print("V   ");                                                              //Display unit
-          } 
-        }
-        else if(digitalRead(buttonLeft)==1){                                                //Left button press (decrements setting values)
-          while(digitalRead(buttonLeft)==1){
-            if(millis()-currentMenuSetMillis>longPressTime){                                //Long Press     
-              voltageBatteryMin -= 1.00;                                                    //Increment by 1
-              voltageBatteryMin = constrain(voltageBatteryMin,vOutSystemMin,vOutSystemMax); //Limit settings values to a range
-              lcd.setCursor(2,1);lcd.print(voltageBatteryMin,2);delay(longPressInterval);   //Display settings data                               
-            }
-            else{                                                                            //Short Press  
-              voltageBatteryMin -= 0.01;                                                     //Increment by 0.01
-              voltageBatteryMin =  constrain(voltageBatteryMin,vOutSystemMin,vOutSystemMax); //Limit settings values to a range
-              lcd.setCursor(2,1);lcd.print(voltageBatteryMin,2);delay(shortPressInterval);   //Display settings data                                      
-            } 
-            lcd.print("V   ");                                                               //Display unit
-          } 
-        }
-      }    
-    }
-    ///// SETTINGS MENU ITEM: CHARGING CURRENT /////
-    else if(subMenuPage==4){
-      lcd.setCursor(0,0);lcd.print("CHARGING CURRENT");
-      if(setMenuPage==1){lcd.setCursor(0,1);lcd.print(" >");}
-      else{lcd.setCursor(0,1);lcd.print("= ");}
-      lcd.setCursor(2,1);lcd.print(currentCharging,2);lcd.print("A");  
-      lcd.print("                ");  
-
-      //SET MENU - FLOATTYPE
-      if(setMenuPage==0){floatTemp = currentCharging;}
-      else{
-        if(digitalRead(buttonBack)==1){while(digitalRead(buttonBack)==1){}currentCharging = floatTemp;cancelledMessageLCD();setMenuPage=0;} 
-        if(digitalRead(buttonSelect)==1){while(digitalRead(buttonSelect)==1){}saveSettings();setMenuPage=0;savedMessageLCD();}     
-        currentMenuSetMillis = millis();
-        if(digitalRead(buttonRight)==1){                                                  //Right button press (increments setting values)
-          while(digitalRead(buttonRight)==1){
-            if(millis()-currentMenuSetMillis>longPressTime){                              //Long Press     
-              currentCharging += 1.00;                                                    //Increment by 1
-              currentCharging = constrain(currentCharging,0.0,cOutSystemMax);             //Limit settings values to a range
-              lcd.setCursor(2,1);lcd.print(currentCharging,2);delay(longPressInterval);   //Display settings data                               
-            }
-            else{                                                                         //Short Press  
-              currentCharging += 0.01;                                                    //Increment by 0.01
-              currentCharging = constrain(currentCharging,0.0,cOutSystemMax);             //Limit settings values to a range
-              lcd.setCursor(2,1);lcd.print(currentCharging,2);delay(shortPressInterval);  //Display settings data                            
-            }  
-            lcd.print("A   ");                                                            //Display unit
-          } 
-        }
-        else if(digitalRead(buttonLeft)==1){                                              //Left button press (decrements setting values)
-          while(digitalRead(buttonLeft)==1){
-            if(millis()-currentMenuSetMillis>longPressTime){                              //Long Press     
-              currentCharging -= 1.00;                                                    //Increment by 1
-              currentCharging = constrain(currentCharging,0.0,cOutSystemMax);             //Limit settings values to a range
-              lcd.setCursor(2,1);lcd.print(currentCharging,2);delay(longPressInterval);   //Display settings data                               
-            }
-            else{                                                                         //Short Press  
-              currentCharging -= 0.01;                                                    //Increment by 0.01
-              currentCharging =  constrain(currentCharging,0.0,cOutSystemMax);            //Limit settings values to a range
-              lcd.setCursor(2,1);lcd.print(currentCharging,2);delay(shortPressInterval);  //Display settings data                                      
-            } 
-            lcd.print("A   ");                                                            //Display unit
-          } 
-        }
-      } 
-    }
-    ///// SETTINGS MENU ITEM: COOLING FAN /////
-    else if(subMenuPage==5){
-      lcd.setCursor(0,0);lcd.print("COOLING FAN     ");
-      if(setMenuPage==1){lcd.setCursor(0,1);lcd.print(" >");}
-      else{lcd.setCursor(0,1);lcd.print("= ");}
-      if(enableFan==1){lcd.print("ENABLED       ");}
-      else{lcd.print("DISABLE         ");}
-
-      //SET MENU - BOOLTYPE
-      if(setMenuPage==0){boolTemp = enableFan;}
-      else{
-        if(digitalRead(buttonRight)==1||digitalRead(buttonLeft)==1){
-          while(digitalRead(buttonRight)==1||digitalRead(buttonLeft)==1){}
-          if(enableFan==1){enableFan=0;}else{enableFan=1;}
-        }
-        if(digitalRead(buttonBack)==1){while(digitalRead(buttonBack)==1){}enableFan = boolTemp;cancelledMessageLCD();setMenuPage=0;} 
-        if(digitalRead(buttonSelect)==1){while(digitalRead(buttonSelect)==1){}saveSettings();setMenuPage=0;savedMessageLCD();}
-      } 
-    }
-    ///// SETTINGS MENU ITEM: FAN TRIG TEMP /////
-    else if(subMenuPage==6){
-      lcd.setCursor(0,0);lcd.print("FAN TRIGGER TEMP");
-      if(setMenuPage==1){lcd.setCursor(0,1);lcd.print(" >");}
-      else{lcd.setCursor(0,1);lcd.print("= ");}
-      lcd.setCursor(2,1);lcd.print(temperatureFan);
-      lcd.print((char)223);lcd.print("C");lcd.print("                ");  
-
-      //SET MENU - INTTYPE
-      if(setMenuPage==0){intTemp = temperatureFan;}
-      else{
-        if(digitalRead(buttonBack)==1){while(digitalRead(buttonBack)==1){}temperatureFan = intTemp;cancelledMessageLCD();setMenuPage=0;} 
-        if(digitalRead(buttonSelect)==1){while(digitalRead(buttonSelect)==1){}saveSettings();setMenuPage=0;savedMessageLCD();}     
-        if(digitalRead(buttonRight)==1){                                              //Right button press (increments setting values)
-          while(digitalRead(buttonRight)==1){   
-            temperatureFan++;                                                       //Increment by 1
-            temperatureFan = constrain(temperatureFan,0,100);                       //Limit settings values to a range
-            lcd.setCursor(2,1);lcd.print(temperatureFan);delay(shortPressInterval); //Display settings data                               
-            lcd.print((char)223);lcd.print("C    ");                                //Display unit
-          } 
-        }
-        else if(digitalRead(buttonLeft)==1){                                        //Left button press (decrements setting values)
-          while(digitalRead(buttonLeft)==1){ 
-            temperatureFan--;                                                       //Increment by 1
-            temperatureFan = constrain(temperatureFan,0,100);                       //Limit settings values to a range
-            lcd.setCursor(2,1);lcd.print(temperatureFan);delay(shortPressInterval); //Display settings data                               
-            lcd.print((char)223);lcd.print("C    ");                                //Display unit
-          } 
-        }
-      }         
-    }
-    ///// SETTINGS MENU ITEM: SHUTDOWN TEMP /////
-    else if(subMenuPage==7){
-      lcd.setCursor(0,0);lcd.print("SHUTDOWN TEMP   ");
-      if(setMenuPage==1){lcd.setCursor(0,1);lcd.print(" >");}
-      else{lcd.setCursor(0,1);lcd.print("= ");}
-      lcd.setCursor(2,1);lcd.print(temperatureMax);
-      lcd.print((char)223);lcd.print("C");lcd.print("                ");  
-
-      //SET MENU - INTTYPE
-      if(setMenuPage==0){intTemp = temperatureMax;}
-      else{
-        if(digitalRead(buttonBack)==1){while(digitalRead(buttonBack)==1){}temperatureMax = intTemp;cancelledMessageLCD();setMenuPage=0;} 
-        if(digitalRead(buttonSelect)==1){while(digitalRead(buttonSelect)==1){}saveSettings();setMenuPage=0;savedMessageLCD();}     
-        if(digitalRead(buttonRight)==1){                                              //Right button press (increments setting values)
-          while(digitalRead(buttonRight)==1){   
-            temperatureMax++;                                                       //Increment by 1
-            temperatureMax = constrain(temperatureMax,0,120);                       //Limit settings values to a range
-            lcd.setCursor(2,1);lcd.print(temperatureMax);delay(shortPressInterval); //Display settings data                               
-            lcd.print((char)223);lcd.print("C    ");                                //Display unit
-          } 
-        }
-        else if(digitalRead(buttonLeft)==1){                                        //Left button press (decrements setting values)
-          while(digitalRead(buttonLeft)==1){ 
-            temperatureMax--;                                                       //Increment by 1
-            temperatureMax = constrain(temperatureMax,0,120);                       //Limit settings values to a range
-            lcd.setCursor(2,1);lcd.print(temperatureMax);delay(shortPressInterval); //Display settings data                               
-            lcd.print((char)223);lcd.print("C    ");                                //Display unit
-          } 
-        }
-      }       
-    }
-    ///// SETTINGS MENU ITEM: WIFI FEATURE /////
-    else if(subMenuPage==8){
-      lcd.setCursor(0,0);lcd.print("WIFI FEATURE    ");
-      if(setMenuPage==1){lcd.setCursor(0,1);lcd.print(" >");}
-      else{lcd.setCursor(0,1);lcd.print("= ");}
-      if(enableWiFi==1){lcd.print("ENABLED       ");}
-      else{lcd.print("DISABLED      ");}
-
-      //SET MENU - BOOLTYPE
-      if(setMenuPage==0){boolTemp = enableWiFi;}
-      else{
-        if(digitalRead(buttonRight)==1||digitalRead(buttonLeft)==1){
-          while(digitalRead(buttonRight)==1||digitalRead(buttonLeft)==1){}
-          if(enableWiFi==1){enableWiFi=0;}else{enableWiFi=1;}
-        }
-        if(digitalRead(buttonBack)==1){while(digitalRead(buttonBack)==1){}enableWiFi = boolTemp;cancelledMessageLCD();setMenuPage=0;} 
-        if(digitalRead(buttonSelect)==1){while(digitalRead(buttonSelect)==1){}saveSettings();setMenuPage=0;savedMessageLCD();}
-      }       
-    }
-
-    ///// SETTINGS MENU ITEM: AUTOLOAD /////
-    else if(subMenuPage==9){
-      lcd.setCursor(0,0);lcd.print("AUTOLOAD FEATURE");
-      if(setMenuPage==1){lcd.setCursor(0,1);lcd.print(" >");}
-      else{lcd.setCursor(0,1);lcd.print("= ");}
-      if(flashMemLoad==1){lcd.print("ENABLED       ");}
-      else{lcd.print("DISABLED      ");}
-
-      //SET MENU - BOOLTYPE
-      if(setMenuPage==0){boolTemp = flashMemLoad;}
-      else{
-        if(digitalRead(buttonRight)==1||digitalRead(buttonLeft)==1){
-          while(digitalRead(buttonRight)==1||digitalRead(buttonLeft)==1){}
-          if(flashMemLoad==1){flashMemLoad=0;}else{flashMemLoad=1;}
-        }
-        if(digitalRead(buttonBack)==1){while(digitalRead(buttonBack)==1){}flashMemLoad = boolTemp;cancelledMessageLCD();setMenuPage=0;} 
-        if(digitalRead(buttonSelect)==1){while(digitalRead(buttonSelect)==1){}saveAutoloadSettings();setMenuPage=0;savedMessageLCD();}
-      }       
-    }
-    ///// SETTINGS MENU ITEM: BACKLIGHT SLEEP /////
-    else if(subMenuPage==10){
-      lcd.setCursor(0,0);lcd.print("BACKLIGHT SLEEP ");
-      if(setMenuPage==1){lcd.setCursor(0,1);lcd.print(" >");}
-      else{lcd.setCursor(0,1);lcd.print("= ");}
-      lcd.setCursor(2,1);
-      if(backlightSleepMode==1)     {lcd.print("10 SECONDS    ");}
-      else if(backlightSleepMode==2){lcd.print("5 MINUTES     ");}
-      else if(backlightSleepMode==3){lcd.print("1 HOUR        ");}
-      else if(backlightSleepMode==4){lcd.print("6 HOURS       ");}  
-      else if(backlightSleepMode==5){lcd.print("12 HOURS      ");}  
-      else if(backlightSleepMode==6){lcd.print("1 DAY         ");}
-      else if(backlightSleepMode==7){lcd.print("3 DAYS        ");}
-      else if(backlightSleepMode==8){lcd.print("1 WEEK        ");}
-      else if(backlightSleepMode==9){lcd.print("1 MONTH       ");}     
-      else{lcd.print("NEVER         ");}    
-      
-      //SET MENU - INTMODETYPE
-      if(setMenuPage==0){intTemp = backlightSleepMode;}
-      else{
-        if(digitalRead(buttonBack)==1){while(digitalRead(buttonBack)==1){}backlightSleepMode = intTemp;cancelledMessageLCD();setMenuPage=0;} 
-        if(digitalRead(buttonSelect)==1){while(digitalRead(buttonSelect)==1){}saveSettings();setMenuPage=0;savedMessageLCD();}     
-        if(digitalRead(buttonRight)==1){                                                    //Right button press (increments setting values)
-          backlightSleepMode++;                                                           //Increment by 1
-          backlightSleepMode = constrain(backlightSleepMode,0,9);                         //Limit settings values to a range
-          lcd.setCursor(2,1);
-          if(backlightSleepMode==1)     {lcd.print("10 SECONDS    ");}
-          else if(backlightSleepMode==2){lcd.print("5 MINUTES     ");}
-          else if(backlightSleepMode==3){lcd.print("1 HOUR        ");}
-          else if(backlightSleepMode==4){lcd.print("6 HOURS       ");}  
-          else if(backlightSleepMode==5){lcd.print("12 HOURS      ");}  
-          else if(backlightSleepMode==6){lcd.print("1 DAY         ");}
-          else if(backlightSleepMode==7){lcd.print("3 DAYS        ");}
-          else if(backlightSleepMode==8){lcd.print("1 WEEK        ");}
-          else if(backlightSleepMode==9){lcd.print("1 MONTH       ");}     
-          else{lcd.print("NEVER         ");}    
-          while(digitalRead(buttonRight)==1){} 
-        }
-        else if(digitalRead(buttonLeft)==1){                                              //Left button press (decrements setting values)
-          backlightSleepMode--;                                                           //Increment by 1
-          backlightSleepMode = constrain(backlightSleepMode,0,9);                         //Limit settings values to a range
-          lcd.setCursor(2,1);
-          if(backlightSleepMode==1)     {lcd.print("10 SECONDS    ");}
-          else if(backlightSleepMode==2){lcd.print("5 MINUTES     ");}
-          else if(backlightSleepMode==3){lcd.print("1 HOUR        ");}
-          else if(backlightSleepMode==4){lcd.print("6 HOURS       ");}  
-          else if(backlightSleepMode==5){lcd.print("12 HOURS      ");}  
-          else if(backlightSleepMode==6){lcd.print("1 DAY         ");}
-          else if(backlightSleepMode==7){lcd.print("3 DAYS        ");}
-          else if(backlightSleepMode==8){lcd.print("1 WEEK        ");}
-          else if(backlightSleepMode==9){lcd.print("1 MONTH       ");}     
-          else{lcd.print("NEVER         ");}    
-          while(digitalRead(buttonLeft)==1){} 
-        }
-      }         
-    }
-    ///// SETTINGS MENU ITEM: FACTORY RESET /////
-    else if(subMenuPage==11){
-      if(setMenuPage==0){
-        lcd.setCursor(0,0);lcd.print("FACTORY RESET   ");
-        lcd.setCursor(0,1);lcd.print("> PRESS SELECT  ");  
-      }
-      else{
-        if(confirmationMenu==0){lcd.setCursor(0,0);lcd.print(" ARE YOU SURE?  ");lcd.setCursor(0,1);lcd.print("  >NO      YES  ");}  // Display ">No"
-        else{lcd.setCursor(0,0);lcd.print(" ARE YOU SURE?  ");lcd.setCursor(0,1);lcd.print("   NO     >YES  ");}                     // Display ">YES"
-        if(digitalRead(buttonRight)==1||digitalRead(buttonLeft)==1){while(digitalRead(buttonRight)==1||digitalRead(buttonLeft)==1){}if(confirmationMenu==0){confirmationMenu=1;}else{confirmationMenu=0;}}  //Cycle Yes NO
-        if(digitalRead(buttonBack)==1){while(digitalRead(buttonBack)==1){}cancelledMessageLCD();setMenuPage=0;confirmationMenu=0;} //Cancel
-        if(digitalRead(buttonSelect)==1){while(digitalRead(buttonSelect)==1){}if(confirmationMenu==1){factoryReset();factoryResetMessageLCD();}setMenuPage=0;confirmationMenu=0;subMenuPage=0;}
-      } 
-    }  
-    ///// SETTINGS MENU ITEM: FIRMWARE VERSION /////
-    else if(subMenuPage==12){
-      if(setMenuPage==0){
-        lcd.setCursor(0,0);lcd.print("FIRMWARE VERSION");
-        lcd.setCursor(0,1);lcd.print(firmwareInfo);    
-        lcd.setCursor(8,1);lcd.print(firmwareDate); 
-
-        
-      }
-      else{
-        lcd.setCursor(0,0);lcd.print(firmwareContactR1);
-        lcd.setCursor(0,1);lcd.print(firmwareContactR2);          
-        if(digitalRead(buttonBack)==1||digitalRead(buttonSelect)==1){while(digitalRead(buttonBack)==1||digitalRead(buttonSelect)==1){}setMenuPage=0;} //Cancel
-      } 
-    }  
+void readButtons() {
+  unsigned long currentTime = millis();
+  
+  // Debouncing kontrola
+  if (currentTime - lastButtonPress < DEBOUNCE_DELAY) {
+    return;
   }
-  //MAIN MENU
-  else if(settingMode==0){
-    chargingPause = 0;
+  
+  // Čítanie tlačidiel
+  bool upPressed = (digitalRead(BUTTON_UP_PIN) == LOW);
+  bool downPressed = (digitalRead(BUTTON_DOWN_PIN) == LOW);
+  bool enterPressed = (digitalRead(BUTTON_ENTER_PIN) == LOW);
+  bool backPressed = (digitalRead(BUTTON_BACK_PIN) == LOW);
+  
+  // Detekcia stlačenia
+  if (upPressed && !buttonUpPressed) {
+    handleButtonUp();
+    lastButtonPress = currentTime;
+  }
+  
+  if (downPressed && !buttonDownPressed) {
+    handleButtonDown();
+    lastButtonPress = currentTime;
+  }
+  
+  if (enterPressed && !buttonEnterPressed) {
+    handleButtonEnter();
+    lastButtonPress = currentTime;
+  }
+  
+  if (backPressed && !buttonBackPressed) {
+    handleButtonBack();
+    lastButtonPress = currentTime;
+  }
+  
+  // Uloženie stavu
+  buttonUpPressed = upPressed;
+  buttonDownPressed = downPressed;
+  buttonEnterPressed = enterPressed;
+  buttonBackPressed = backPressed;
+}
 
-    //LCD BACKLIGHT SLEEP
-    lcdBacklight();
+void handleButtonUp() {
+  switch(currentMenu) {
+    case MENU_MAIN:
+    case MENU_SETTINGS:
+    case MENU_BATTERY_SETUP:
+      // Posun kurzora hore
+      menuCursor--;
+      if (menuCursor < 0) {
+        menuCursor = getMenuItemsCount() - 1;
+      }
+      break;
+      
+    case MENU_STATS:
+      // Scroll hore
+      menuScroll = max(menuScroll - 1, 0);
+      break;
+  }
+  
+  updateDisplay();
+}
 
-    //BUTTON KEYPRESS
-    if(digitalRead(buttonRight)==1) {buttonRightCommand=1;lcdBacklight_Wake();}
-    if(digitalRead(buttonLeft)==1)  {buttonLeftCommand=1;lcdBacklight_Wake();}
-    if(digitalRead(buttonBack)==1)  {buttonBackCommand=1;lcdBacklight_Wake();}
-    if(digitalRead(buttonSelect)==1){buttonSelectCommand=1;lcdBacklight_Wake();}
+void handleButtonDown() {
+  switch(currentMenu) {
+    case MENU_MAIN:
+    case MENU_SETTINGS:
+    case MENU_BATTERY_SETUP:
+      // Posun kurzora dole
+      menuCursor++;
+      if (menuCursor >= getMenuItemsCount()) {
+        menuCursor = 0;
+      }
+      break;
+      
+    case MENU_STATS:
+      // Scroll dole
+      menuScroll++;
+      break;
+  }
+  
+  updateDisplay();
+}
+
+void handleButtonEnter() {
+  switch(currentMenu) {
+    case MENU_MAIN:
+      // Vstup do vybraného menu
+      enterSelectedMenu();
+      break;
+      
+    case MENU_SETTINGS:
+    case MENU_BATTERY_SETUP:
+      // Spracovanie výberu v nastaveniach
+      processMenuSelection();
+      break;
+      
+    case MENU_STATUS:
+    case MENU_CHARGING:
+      // Prepnúť na hlavné menu
+      changeMenu(MENU_MAIN);
+      break;
+  }
+  
+  updateDisplay();
+}
+
+void handleButtonBack() {
+  switch(currentMenu) {
+    case MENU_MAIN:
+      // Naspäť na stavový displej
+      changeMenu(MENU_STATUS);
+      break;
+      
+    case MENU_SETTINGS:
+    case MENU_BATTERY_SETUP:
+    case MENU_STATS:
+    case MENU_SYSTEM_INFO:
+    case MENU_DIAGNOSTICS:
+    case MENU_CALIBRATION:
+      // Naspäť do hlavného menu
+      changeMenu(MENU_MAIN);
+      break;
+      
+    case MENU_STATUS:
+    case MENU_CHARGING:
+      // Nič (už sme v hlavnom zobrazení)
+      break;
+  }
+  
+  updateDisplay();
+}
+
+// ============================================
+// RIADENIE MENU
+// ============================================
+
+void changeMenu(MenuState newMenu) {
+  if (currentMenu == newMenu) return;
+  
+  previousMenu = currentMenu;
+  currentMenu = newMenu;
+  
+  // Resetovanie kurzora a scrollu
+  menuCursor = 0;
+  menuScroll = 0;
+  
+  Serial.print("Zmena menu: ");
+  Serial.println(getMenuName(currentMenu));
+}
+
+String getMenuName(MenuState menu) {
+  switch(menu) {
+    case MENU_MAIN: return "HLAVNE_MENU";
+    case MENU_STATUS: return "STAV";
+    case MENU_CHARGING: return "NABIJANIE";
+    case MENU_STATS: return "STATISTIKY";
+    case MENU_SETTINGS: return "NASTAVENIA";
+    case MENU_BATTERY_SETUP: return "BATERIA";
+    case MENU_SYSTEM_INFO: return "SYSTEM";
+    case MENU_DIAGNOSTICS: return "DIAGNOSTIKA";
+    case MENU_CALIBRATION: return "KALIBRACIA";
+    default: return "NEZNAME";
+  }
+}
+
+int getMenuItemsCount() {
+  switch(currentMenu) {
+    case MENU_MAIN: return 6;
+    case MENU_SETTINGS: return 5;
+    case MENU_BATTERY_SETUP: return 4;
+    default: return 0;
+  }
+}
+
+void enterSelectedMenu() {
+  switch(menuCursor) {
+    case 0: changeMenu(MENU_STATUS); break;
+    case 1: changeMenu(MENU_CHARGING); break;
+    case 2: changeMenu(MENU_STATS); break;
+    case 3: changeMenu(MENU_SETTINGS); break;
+    case 4: changeMenu(MENU_SYSTEM_INFO); break;
+    case 5: changeMenu(MENU_DIAGNOSTICS); break;
+  }
+}
+
+void processMenuSelection() {
+  // Spracovanie výberu v nastaveniach
+  if (currentMenu == MENU_SETTINGS) {
+    switch(menuCursor) {
+      case 0: changeMenu(MENU_BATTERY_SETUP); break;
+      case 1: toggleLowPowerMode(); break;
+      case 2: calibrateSensors(); break;
+      case 3: resetStatistics(); break;
+      case 4: rebootSystem(); break;
+    }
+  }
+  
+  if (currentMenu == MENU_BATTERY_SETUP) {
+    setBatteryType((BatteryType)menuCursor);
+    changeMenu(MENU_SETTINGS);
+  }
+}
+
+// ============================================
+// ZOBRAZOVACIE FUNKCIE
+// ============================================
+
+void updateDisplay() {
+  // Aktualizácia displeja podľa aktuálneho menu
+  switch(currentMenu) {
+    case MENU_STATUS:
+      displayStatusScreen();
+      break;
+      
+    case MENU_CHARGING:
+      displayChargingScreen();
+      break;
+      
+    case MENU_STATS:
+      displayStatsScreen();
+      break;
+      
+    case MENU_MAIN:
+      displayMainMenu();
+      break;
+      
+    case MENU_SETTINGS:
+      displaySettingsMenu();
+      break;
+      
+    case MENU_BATTERY_SETUP:
+      displayBatteryMenu();
+      break;
+      
+    case MENU_SYSTEM_INFO:
+      displaySystemInfo();
+      break;
+      
+    case MENU_DIAGNOSTICS:
+      displayDiagnostics();
+      break;
+      
+    case MENU_CALIBRATION:
+      displayCalibration();
+      break;
+  }
+}
+
+void displayStatusScreen() {
+  u8g2.clearBuffer();
+  
+  // Hlavička
+  u8g2.setFont(u8g2_font_6x10_tf);
+  u8g2.drawStr(0, 0, "MPPT REGULATOR");
+  
+  // Stav systému
+  u8g2.drawStr(0, 12, "Stav:");
+  u8g2.drawStr(40, 12, getStateName(currentSystemState).c_str());
+  
+  // Fáza nabíjania
+  u8g2.drawStr(0, 24, "Faza:");
+  u8g2.drawStr(40, 24, getPhaseName(currentChargePhase).c_str());
+  
+  // Batéria
+  char buffer[32];
+  sprintf(buffer, "Bat: %.1fV %.1fA", batteryVoltage, batteryCurrent);
+  u8g2.drawStr(0, 36, buffer);
+  
+  // Panel
+  sprintf(buffer, "Panel: %.1fV %.1fW", panelVoltage, panelPower);
+  u8g2.drawStr(0, 48, buffer);
+  
+  // Účinnosť a teplota
+  sprintf(buffer, "Ucin: %.1f%%  %.1fC", efficiency, temperature);
+  u8g2.drawStr(0, 60, buffer);
+  
+  // Indikátor menu
+  u8g2.drawStr(110, 60, "MENU");
+  
+  u8g2.sendBuffer();
+}
+
+void displayChargingScreen() {
+  u8g2.clearBuffer();
+  
+  // Nadpis
+  u8g2.setFont(u8g2_font_6x10_tf);
+  u8g2.drawStr(0, 0, "DETAIL NABIJANIA");
+  
+  // PWM a MPPT
+  char buffer[32];
+  sprintf(buffer, "PWM: %.1f%%", pwmDutyCycle);
+  u8g2.drawStr(0, 12, buffer);
+  
+  sprintf(buffer, "MPPT: %s", 
+    mpptState == MPPT_TRACKING ? "SLEDUJE" : 
+    mpptState == MPPT_SCANNING ? "SKENUJE" : "DRZI");
+  u8g2.drawStr(70, 12, buffer);
+  
+  // Prúdy
+  sprintf(buffer, "Ipanel: %.2f A", panelCurrent);
+  u8g2.drawStr(0, 24, buffer);
+  
+  sprintf(buffer, "Ibat: %.2f A", batteryCurrent);
+  u8g2.drawStr(0, 36, buffer);
+  
+  // Napätia
+  sprintf(buffer, "Upanel: %.1f V", panelVoltage);
+  u8g2.drawStr(0, 48, buffer);
+  
+  sprintf(buffer, "Ubat: %.1f V", batteryVoltage);
+  u8g2.drawStr(0, 60, buffer);
+  
+  u8g2.sendBuffer();
+}
+
+void displayStatsScreen() {
+  u8g2.clearBuffer();
+  
+  // Nadpis
+  u8g2.setFont(u8g2_font_6x10_tf);
+  u8g2.drawStr(0, 0, "STATISTIKY");
+  
+  char buffer[32];
+  int line = 12;
+  
+  // Denné štatistiky
+  sprintf(buffer, "Energia: %.0f Wh", dailyStats.totalEnergy);
+  u8g2.drawStr(0, line); line += 12;
+  
+  sprintf(buffer, "Max vykon: %.0f W", dailyStats.maxPower);
+  u8g2.drawStr(0, line); line += 12;
+  
+  sprintf(buffer, "Cyklov: %d", dailyStats.chargeCycles);
+  u8g2.drawStr(0, line); line += 12;
+  
+  sprintf(buffer, "Ucin: %.1f %%", dailyStats.avgEfficiency);
+  u8g2.drawStr(0, line); line += 12;
+  
+  // Batéria
+  sprintf(buffer, "Ubat min: %.1f V", dailyStats.minBatteryVoltage);
+  u8g2.drawStr(0, line); line += 12;
+  
+  sprintf(buffer, "Ubat max: %.1f V", dailyStats.maxBatteryVoltage);
+  u8g2.drawStr(0, line);
+  
+  // Indikátor scrollu
+  if (menuScroll > 0) {
+    u8g2.drawStr(110, 60, "^");
+  }
+  
+  u8g2.sendBuffer();
+}
+
+void displayMainMenu() {
+  u8g2.clearBuffer();
+  
+  // Nadpis
+  u8g2.setFont(u8g2_font_6x10_tf);
+  u8g2.drawStr(0, 0, "HLAVNE MENU");
+  
+  // Položky menu
+  const char* menuItems[] = {
+    "Stav systemu",
+    "Detaily nabijania",
+    "Statistiky",
+    "Nastavenia",
+    "Info o systeme",
+    "Diagnostika"
+  };
+  
+  // Zobrazenie položiek
+  for (int i = 0; i < 6; i++) {
+    int yPos = 12 + i * 10;
     
-    currentLCDMillis = millis();
-    if(currentLCDMillis-prevLCDMillis>=millisLCDInterval&&enableLCD==1){   //Run routine every millisLCDInterval (ms)
-      prevLCDMillis = currentLCDMillis;     
+    // Kurzor
+    if (i == menuCursor) {
+      u8g2.drawStr(0, yPos, ">");
+    }
+    
+    // Text položky
+    u8g2.drawStr(8, yPos, menuItems[i]);
+  }
+  
+  // Návod
+  u8g2.drawStr(0, 60, "ENTER-vyber  BACK-spat");
+  
+  u8g2.sendBuffer();
+}
 
-      //MENU PAGE BUTTON ACTION
-      if(buttonRightCommand==1)      {buttonRightCommand=0;menuPage++;lcd.clear();}
-      else if(buttonLeftCommand==1)  {buttonLeftCommand=0;menuPage--;lcd.clear();}
-      else if(buttonBackCommand==1)  {buttonBackCommand=0;menuPage=0;lcd.clear();}
-      else if(buttonSelectCommand==1&&menuPage==4){buttonSelectCommand=0;settingMode=1;lcd.clear();}
-      if(menuPage>menuPages){menuPage=0;}
-      else if(menuPage<0){menuPage=menuPages;}  
+void displaySettingsMenu() {
+  u8g2.clearBuffer();
+  
+  u8g2.setFont(u8g2_font_6x10_tf);
+  u8g2.drawStr(0, 0, "NASTAVENIA");
+  
+  const char* menuItems[] = {
+    "Typ baterie",
+    "Setrny rezim",
+    "Kalibracia",
+    "Reset statistik",
+    "Reboot systemu"
+  };
+  
+  // Zobrazenie položiek
+  for (int i = 0; i < 5; i++) {
+    int yPos = 12 + i * 10;
+    
+    // Kurzor
+    if (i == menuCursor) {
+      u8g2.drawStr(0, yPos, ">");
+    }
+    
+    // Text položky
+    u8g2.drawStr(8, yPos, menuItems[i]);
+    
+    // Aktuálne hodnoty
+    if (i == 0) {
+      u8g2.drawStr(70, yPos, currentProfile->batteryName.c_str());
+    } else if (i == 1) {
+      u8g2.drawStr(70, yPos, lowPowerMode ? "ZAPNUTY" : "VYPNUTY");
+    }
+  }
+  
+  u8g2.drawStr(0, 60, "ENTER-vyber  BACK-spat");
+  
+  u8g2.sendBuffer();
+}
 
-      if(menuPage==0)     {displayConfig1();}
-      else if(menuPage==1){displayConfig2();}
-      else if(menuPage==2){displayConfig3();}
-      else if(menuPage==3){displayConfig4();}
-      else if(menuPage==4){displayConfig5();}
-    }    
+void displayBatteryMenu() {
+  u8g2.clearBuffer();
+  
+  u8g2.setFont(u8g2_font_6x10_tf);
+  u8g2.drawStr(0, 0, "TYP BATERIE");
+  
+  const char* batteryTypes[] = {
+    "AGM (test)",
+    "LiFePO4",
+    "Olova kysla",
+    "Vlastny"
+  };
+  
+  // Zobrazenie typov
+  for (int i = 0; i < 4; i++) {
+    int yPos = 12 + i * 12;
+    
+    // Kurzor
+    if (i == menuCursor) {
+      u8g2.drawStr(0, yPos, ">");
+    }
+    
+    // Typ batérie
+    u8g2.drawStr(8, yPos, batteryTypes[i]);
+    
+    // Zvýraznenie aktuálneho typu
+    if (i == (int)selectedBatteryType) {
+      u8g2.drawStr(100, yPos, "[AKT]");
+    }
+  }
+  
+  // Parametre vybraného typu
+  int yInfo = 60;
+  u8g2.drawStr(0, yInfo, "Max prud:");
+  char buffer[16];
+  sprintf(buffer, "%.1fA", currentProfile->maxChargeCurrent);
+  u8g2.drawStr(60, yInfo, buffer);
+  
+  u8g2.sendBuffer();
+}
+
+void displaySystemInfo() {
+  u8g2.clearBuffer();
+  
+  u8g2.setFont(u8g2_font_6x10_tf);
+  u8g2.drawStr(0, 0, "INFO O SYSTEME");
+  
+  char buffer[32];
+  int line = 12;
+  
+  // Verzia
+  u8g2.drawStr(0, line, "Verzia: 1.0"); line += 10;
+  
+  // Čas behu
+  float uptimeHours = millis() / 3600000.0;
+  sprintf(buffer, "Uptime: %.1f h", uptimeHours);
+  u8g2.drawStr(0, line); line += 10;
+  
+  // WiFi stav
+  u8g2.drawStr(0, line, "WiFi:");
+  u8g2.drawStr(30, line, wifiState == WIFI_CONNECTED ? "Pripojene" : "Nepripojene");
+  line += 10;
+  
+  // Pamäť
+  sprintf(buffer, "Pamät: %d B", ESP.getFreeHeap());
+  u8g2.drawStr(0, line); line += 10;
+  
+  // Batéria
+  sprintf(buffer, "Typ: %s", currentProfile->batteryName.c_str());
+  u8g2.drawStr(0, line); line += 10;
+  
+  // CPU frekvencia
+  sprintf(buffer, "CPU: %d MHz", getCpuFrequencyMhz());
+  u8g2.drawStr(0, line);
+  
+  u8g2.sendBuffer();
+}
+
+// ============================================
+// AKCIE MENU
+// ============================================
+
+void toggleLowPowerMode() {
+  if (lowPowerMode) {
+    exitLowPowerMode();
+  } else {
+    enterLowPowerMode();
+  }
+  
+  // Vrátiť sa do menu
+  updateDisplay();
+}
+
+void resetStatistics() {
+  clearTelemetryHistory();
+  resetDailyStats();
+  
+  // Potvrdenie
+  u8g2.clearBuffer();
+  u8g2.drawStr(0, 20, "Statistiky");
+  u8g2.drawStr(0, 30, "vycistene!");
+  u8g2.sendBuffer();
+  delay(1000);
+  
+  changeMenu(MENU_SETTINGS);
+}
+
+void rebootSystem() {
+  u8g2.clearBuffer();
+  u8g2.drawStr(0, 20, "Reboot systemu...");
+  u8g2.sendBuffer();
+  delay(1000);
+  
+  ESP.restart();
+}
+
+// ============================================
+// DIAGNOSTICKÉ ZOBRAZENIE
+// ============================================
+
+void displayDiagnostics() {
+  u8g2.clearBuffer();
+  
+  u8g2.setFont(u8g2_font_6x10_tf);
+  u8g2.drawStr(0, 0, "DIAGNOSTIKA");
+  
+  char buffer[32];
+  int line = 12;
+  
+  // ADC hodnoty
+  sprintf(buffer, "ADC0: %d", ads.readADC_SingleEnded(0));
+  u8g2.drawStr(0, line); line += 10;
+  
+  sprintf(buffer, "ADC1: %d", ads.readADC_SingleEnded(1));
+  u8g2.drawStr(0, line); line += 10;
+  
+  sprintf(buffer, "ADC2: %d", ads.readADC_SingleEnded(2));
+  u8g2.drawStr(0, line); line += 10;
+  
+  // Chybové vlajky
+  u8g2.drawStr(0, line, "Chyby:");
+  line += 10;
+  
+  if (overVoltageFlag) {
+    u8g2.drawStr(0, line, "Vysoke napatie"); line += 10;
+  }
+  if (underVoltageFlag) {
+    u8g2.drawStr(0, line, "Nizke napatie"); line += 10;
+  }
+  if (overTempFlag) {
+    u8g2.drawStr(0, line, "Vysoka teplota"); line += 10;
+  }
+  
+  // Stav MPPT
+  sprintf(buffer, "MPPT: %d", mpptState);
+  u8g2.drawStr(0, line);
+  
+  u8g2.sendBuffer();
+}
+
+void displayCalibration() {
+  u8g2.clearBuffer();
+  
+  u8g2.setFont(u8g2_font_6x10_tf);
+  u8g2.drawStr(0, 0, "KALIBRACIA");
+  
+  u8g2.drawStr(0, 15, "Odpojte vsetky");
+  u8g2.drawStr(0, 25, "vstupy a vystupy!");
+  u8g2.drawStr(0, 40, "ENTER - zacat");
+  u8g2.drawStr(0, 50, "BACK - zrusit");
+  
+  u8g2.sendBuffer();
+}
+
+// ============================================
+// AUTOMATICKÁ AKTUALIZÁCIA DISPLEJA
+// ============================================
+
+void updateDisplayPeriodically() {
+  static unsigned long lastDisplayUpdate = 0;
+  unsigned long currentTime = millis();
+  
+  // Aktualizovať displej každých 500ms
+  if (currentTime - lastDisplayUpdate >= 500) {
+    // Iba ak nie sme v menu s kurzorom
+    if (currentMenu == MENU_STATUS || currentMenu == MENU_CHARGING) {
+      updateDisplay();
+    }
+    lastDisplayUpdate = currentTime;
+  }
+}
+
+// ============================================
+// HLAVNÁ FUNKCIA DISPLEJOVÉHO SYSTÉMU
+// ============================================
+
+void runLCDMenuSystem() {
+  // 1. Čítanie tlačidiel
+  readButtons();
+  
+  // 2. Periodická aktualizácia
+  updateDisplayPeriodically();
+  
+  // 3. Automatický návrat do stavového displeja
+  static unsigned long lastInteraction = 0;
+  if (currentMenu != MENU_STATUS) {
+    if (millis() - lastInteraction > 30000) {  // 30 sekúnd nečinnosti
+      changeMenu(MENU_STATUS);
+    }
+  } else {
+    lastInteraction = millis();
+  }
+  
+  // 4. Špeciálne efekty pre chybové stavy
+  if (currentSystemState == STATE_FAULT && currentMenu == MENU_STATUS) {
+    displayFaultBlink();
+  }
+}
+
+void displayFaultBlink() {
+  // Blikanie pri chybovom stave
+  static unsigned long lastBlink = 0;
+  static bool blinkState = false;
+  
+  if (millis() - lastBlink > 500) {
+    blinkState = !blinkState;
+    
+    if (blinkState) {
+      u8g2.setDrawColor(0);
+      u8g2.drawBox(0, 0, 128, 64);
+      u8g2.setDrawColor(1);
+      u8g2.drawStr(10, 20, "CHYBOVY STAV!");
+      u8g2.drawStr(10, 35, "Skontrolujte");
+      u8g2.drawStr(10, 45, "pripojenia");
+      u8g2.sendBuffer();
+    } else {
+      updateDisplay();
+    }
+    
+    lastBlink = millis();
   }
 }

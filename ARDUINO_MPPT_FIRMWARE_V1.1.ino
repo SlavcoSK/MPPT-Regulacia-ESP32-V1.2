@@ -1,370 +1,568 @@
-/*  PROJECT FUGU FIRMWARE V1.10 (DIY 1kW MPPT solárny regulátor nabíjania s otvoreným zdrojovým kódom)
-* Autor: TechBuilder (Angelo Casimiro)
-* STAV FIRMWARE: Overená stabilná verzia zostavy
-* (Kontaktujte ma pre experimentálne beta verzie)
- *  -----------------------------------------------------------------------------------------------------------
- *  DATE CREATED:  02/07/2021 
- *  DATE MODIFIED: 30/08/2021
- *  -----------------------------------------------------------------------------------------------------------
- *  CONTACTS:
- *  GitHub - www.github.com/AngeloCasi (New firmware releases will only be available on GitHub Link)
- *  Email - casithebuilder@gmail.com
- *  YouTube - www.youtube.com/TechBuilder
- *  Facebook - www.facebook.com/AngeloCasii
- *  -----------------------------------------------------------------------------------------------------------
- *  VLASTNOSTI PROGRAMU:
-* - MPPT algoritmus s poruchami a CC-CV
-* - Telemetria aplikácie Blynk Phone cez WiFi a Bluetooth
-* - Voliteľný režim nabíjačky/zdroja (môže fungovať ako programovateľný buck prevodník)
-* - Odomknutý dvojjadrový ESP32 (pomocou xTaskCreatePinnedToCore(); )
-* - Presné sledovanie ADC, automatická detekcia ADS1115/ADS1015 (16-bitový/12-bitový I2C ADC)
-* - Automatická kalibrácia prúdového senzora ACS712-30A
-* - Vybavený protokolom ochrany proti odpojeniu batérie a obnoveniu odpojenia vstupu
-* - LCD menu (s nastaveniami a 4 rozloženiami displeja)
-* - Flash pamäť (funkcia uloženia nastavení bez nutnosti výpadku energie)
-* - Nastaviteľné rozlíšenie PWM (8-16-bitový)
-* - Nastaviteľná frekvencia prepínania PWM (1,2 kHz - 312 kHz)
- *  -----------------------------------------------------------------------------------------------------------
- *  POKYNY K PROGRAMU:
-* 1.) Pred použitím si pozrite video tutoriál na YouTube.
-* 2.) Nainštalujte potrebné knižnice Arduino pre integrované obvody.
-* 3.) Vyberte Nástroje > Vývojová doska ESP32.
-* 4.) Neupravujte kód, pokiaľ neviete, čo robíte.
-* 5.) Topológia synchrónneho buck meniča MPPT je závislá od kódu a môže narušiť algoritmus.
-* a protokoly bezpečnostnej ochrany môžu byť mimoriadne nebezpečné, najmä pri práci s HVDC.
-* 6.) Nainštalujte Blynk Legacy pre prístup k funkcii telemetrie aplikácie telefónu.
-* 7.) Do tohto programu zadajte autentifikačný token Blynk, ktorý vám Blynk poslal na váš e-mail po registrácii.
-* 8.) Do tohto programu zadajte SSID WiFi a heslo.
-* 9.) Pri použití režimu iba WiFi zmeňte „disableFlashAutoLoad = 0“ na = 1 (LCD a tlačidlá nie sú nainštalované).
-* toto zabráni jednotke MPPT načítať uložené nastavenia z flash pamäte a načíta premennú Arduino.
-* deklarácie uvedené nižšie.
- *  -----------------------------------------------------------------------------------------------------------
- *  GOOGLE DRIVE PROJECT LINK: coming soon
- *  INSTRUCTABLE TUTORIAL LINK: coming soon
- *  YOUTUBE TUTORIAL LINK: www.youtube.com/watch?v=ShXNJM6uHLM
- *  GITHUB UPDATED FUGU FIRMWARE LINK: github.com/AngeloCasi/FUGU-ARDUINO-MPPT-FIRMWARE
- *  -----------------------------------------------------------------------------------------------------------
- *  ACTIVE CHIPS USED IN FIRMWARE:
- *  - ESP32 WROOM32
- *  - ADS1115/ADS1015 I2C ADC
- *  - ACS712-30A Current Sensor IC
- *  - IR2104 MOSFET Driver
- *  - CH340C USB TO UART IC
- *  - 16X2 I2C Character LCD
+// ============================================
+// Hlavný kód MPPT regulátora
+// Verzia 1.1 - Kompletný systém
+// ============================================
 
- *  OTHER CHIPS USED IN PROJECT:
- *  - XL7005A 80V 0.4A Buck Regulator (2x)
- *  - AMS1115-3.3 LDO Linear Regulator 
- *  - AMS1115-5.0 LDO Linear Regulator  
- *  - CSD19505 N-ch MOSFETS (3x)
- *  - B1212 DC-DC Isolated Converter
- *  - SS310 Diodes
- */
-//================================ MPPT FIRMWARE LCD MENU INFO =====================================//
-// Riadky nižšie slúžia pre informácie o verzii firmvéru zobrazené na LCD rozhraní ponuky MPPT.    //
-//==================================================================================================//
-String 
-firmwareInfo      = "V1.10   ",
-firmwareDate      = "30/08/21",
-firmwareContactR1 = "www.youtube.com/",  
-firmwareContactR2 = "TechBuilder     ";        
-           
-//====================== ARDUINO LIBRARIES (ESP32 Compatible Libraries) ============================//
-// Na naprogramovanie MPPT jednotky si budete musieť stiahnuť a nainštalovať nasledujúce knižnice. //
-// Návod na používanie MPPT nájdete na YouTube kanáli TechBuilder.                         //
-//============================================================================================= ====//
-#include <EEPROM.h>                 //SYSTEM PARAMETER  - EEPROM Library (By: Arduino)
-#include <Wire.h>                   //SYSTEM PARAMETER  - WIRE Library (By: Arduino)
-#include <SPI.h>                    //SYSTEM PARAMETER  - SPI Library (By: Arduino)
-#include <WiFi.h>                   //SYSTEM PARAMETER  - WiFi Library (By: Arduino)
-#include <WiFiClient.h>             //SYSTEM PARAMETER  - WiFi Library (By: Arduino)
-#include <BlynkSimpleEsp32.h>       //SYSTEM PARAMETER  - Blynk WiFi Library For Phone App 
-#include <LiquidCrystal_I2C.h>      //SYSTEM PARAMETER  - ESP32 LCD Compatible Library (By: Robojax)
-#include <Adafruit_ADS1X15.h>       //SYSTEM PARAMETER  - ADS1115/ADS1015 ADC Library (By: Adafruit)
-LiquidCrystal_I2C lcd(0x27,16,2);   //SYSTEM PARAMETER  - Configure LCD RowCol Size and I2C Address
-TaskHandle_t Core2;                 //SYSTEM PARAMETER  - Used for the ESP32 dual core operation
-//Adafruit_ADS1015 ads;               //SYSTEM PARAMETER  - ADS1015 ADC Library (By: Adafruit) Kindly delete this line if you are using ADS1115
-Adafruit_ADS1115 ads;             //SYSTEM PARAMETER  - ADS1115 ADC Library (By: Adafruit) Kindly uncomment this if you are using ADS1115
+// ============================================
+// KNIŽNICE
+// ============================================
 
-//====================================== USER PARAMETERS ===========================================//
-// Nižšie uvedené parametre sú predvolené parametre používané, keď nastavenia MPPT nabíjačky neboli //
-// nastavené alebo uložené prostredníctvom rozhrania ponuky LCD alebo aplikácie WiFi mobilného telefónu. Niektoré parametre tu //
-// by vám umožnili prepísať alebo odomknúť funkcie pre pokročilých používateľov (nastavenia nie sú v ponuke LCD) //
-//==================================================================================================//
-#define backflow_MOSFET 27          //SYSTEM PARAMETER - Spätný MOSFET
-#define buck_IN         33          //SYSTEM PARAMETER - PWM ovládač Buck MOSFETu
-#define buck_EN         32          //SYSTEM PARAMETER - Pin aktivácie ovládača Buck MOSFET
-#define LED             2           //SYSTEM PARAMETER - LED indikátor GPIO pin
-#define FAN             16          //SYSTEM PARAMETER - GPIO pin ventilátora
-#define ADC_ALERT       34          //SYSTEM PARAMETER - GPIO pin ventilátora
-#define TempSensor      35          //SYSTEM PARAMETER - TGPIO pin teplotného senzora
-#define buttonLeft      18          //SYSTEM PARAMETER - 
-#define buttonRight     17          //SYSTEM PARAMETER -
-#define buttonBack      19          //SYSTEM PARAMETER - 
-#define buttonSelect    23          //SYSTEM PARAMETER -
+#include <Wire.h>
+#include <Adafruit_ADS1X15.h>
+#include <U8g2lib.h>
+#include <WiFi.h>
+#include <BlynkSimpleEsp32.h>
+#include <EEPROM.h>
 
-//========================================= WiFi SSID ==============================================//
-// Tento MPPT firmvér používa telefónnu aplikáciu Blynk a knižnicu Arduino na ovládanie a telemetriu údajov //
-// Vyplňte svoje WiFi SSID a heslo. Po registrácii na platforme Blynk budete musieť získať aj vlastný autentifikačný token //
-// z e-mailu.            //
-//==================================================================================================//
-char 
-auth[] = "Blynk token",   //   POUŽÍVATEĽSKÝ PARAMETER - Zadajte autentifikačný token Blynk (z e-mailu po registrácii)
-ssid[] = "Wifi ssid",                   //   USER PARAMETER - Enter Your WiFi SSID
-pass[] = " heslo";               //   USER PARAMETER - Enter Your WiFi Password
+// ============================================
+// KONFIGURÁCIA PINOV
+// ============================================
 
-//====================================== USER PARAMETERS ==========================================//
-// Nižšie uvedené parametre sú predvolené parametre používané, keď nastavenia MPPT nabíjačky neboli //
-// nastavené alebo uložené prostredníctvom rozhrania ponuky LCD alebo aplikácie WiFi mobilného telefónu. Niektoré parametre tu //
-// vám umožnia prepísať alebo odomknúť funkcie pre pokročilých používateľov (nastavenia nie sú v ponuke LCD)//
-//=================================================================================================//
-bool                                  
-MPPT_Mode               = 1,           //   USER PARAMETER - Povoliť algoritmus MPPT, keď je vypnutý, nabíjačka používa algoritmus CC-CV 
-output_Mode             = 1,           //   USER PARAMETER - 0 = REŽIM NAPÁJACIEHO ZÁSOBNÍKA, 1 = Režim nabíjačky 
-disableFlashAutoLoad    = 0,           //   USER PARAMETER - Núti MPPT, aby nepoužíval nastavenia uložené v pamäti, povolenie tejto hodnoty „1“ predvolene nastaví naprogramované nastavenia firmvéru.
-enablePPWM              = 1,           //   USER PARAMETER - Umožňuje prediktívnu PWM, čo zrýchľuje reguláciu (platí len pre nabíjanie batérií).
-enableWiFi              = 1,           //   USER PARAMETER - Povoliť pripojenie Wi-Fi
-enableFan               = 1,           //   USER PARAMETER - Povoliť chladiaci ventilátor
-enableBluetooth         = 1,           //   USER PARAMETER - Povoliť pripojenie Bluetooth
-enableLCD               = 1,           //   USER PARAMETER - Povoliť LCD displej
-enableLCDBacklight      = 1,           //   USER PARAMETER - Povoliť podsvietenie LCD displeja
-overrideFan             = 0,           //   USER PARAMETER - Ventilátor je stále zapnutý
-enableDynamicCooling    = 0;           //   USER PARAMETER - Povoliť PWM riadenie chladenia 
-int
-serialTelemMode         = 1,           //  USER PARAMETER - Vyberá sériový telemetrický prenos údajov (0 – Zakázať sériový port, 1 – Zobraziť všetky údaje, 2 – Zobraziť základné údaje, 3 – Iba čísla)
-pwmResolution           = 11,          //  USER PARAMETER - PWM Bit Resolution 
-pwmFrequency            = 39000,       //  USER PARAMETER - PWM Switching Frequency - Hz (For Buck)
-temperatureFan          = 60,          //  USER PARAMETER - Temperature threshold for fan to turn on
-temperatureMax          = 90,          //  USER PARAMETER - Overtemperature, System Shudown When Exceeded (deg C)
-telemCounterReset       = 0,           //  USER PARAMETER - Reset Telem Data Every (0 = Never, 1 = Day, 2 = Week, 3 = Month, 4 = Year) 
-errorTimeLimit          = 1000,        //  USER PARAMETER - Time interval for reseting error counter (milliseconds)  
-errorCountLimit         = 5,           //  USER PARAMETER - Maximum number of errors  
-millisRoutineInterval   = 250,         //  USER PARAMETER - Time Interval Refresh Rate For Routine Functions (ms)
-millisSerialInterval    = 1,           //  USER PARAMETER - Time Interval Refresh Rate For USB Serial Datafeed (ms)
-millisLCDInterval       = 1000,        //  USER PARAMETER - Time Interval Refresh Rate For LCD Display (ms)
-millisWiFiInterval      = 2000,        //  USER PARAMETER - Time Interval Refresh Rate For WiFi Telemetry (ms)
-millisLCDBackLInterval  = 2000,        //  USER PARAMETER - Time Interval Refresh Rate For WiFi Telemetry (ms)
-backlightSleepMode      = 0,           //  USER PARAMETER - 0 = Never, 1 = 10secs, 2 = 5mins, 3 = 1hr, 4 = 6 hrs, 5 = 12hrs, 6 = 1 day, 7 = 3 days, 8 = 1wk, 9 = 1month
-baudRate                = 500000;      //  USER PARAMETER - USB Serial Baud Rate (bps)
+// PWM výstup
+#define PWM_PIN 27
+#define PWM_CHANNEL 0
+#define PWM_FREQUENCY 20000
+#define PWM_RESOLUTION 10  // 10-bit (0-1023)
 
-float 
-voltageBatteryMax       = 14.3000,     //   USER PARAMETER - Maximálne nabíjacie napätie batérie (výstupné V)
-voltageBatteryMin       = 12.1000,     //   USER PARAMETER - Minimálne nabíjacie napätie batérie (výstupné V)
-currentCharging         = 5.0000,     //   USER PARAMETER - Maximálny nabíjací prúd (A - výstup)
-electricalPrice         = 0.15415;      //   USER PARAMETER - Vstupná elektrická cena za kWh (dolár/kWh,euro/kWh,peso/kWh)
+// Indikačné LED
+#define LED_PIN 2
+#define ERROR_LED_PIN 4
 
+// Relé/MOSFET pre odpojenie
+#define BATTERY_DISCONNECT_PIN 14
+#define PANEL_DISCONNECT_PIN 12
 
-//================================== CALIBRATION PARAMETERS =======================================//
-// Nižšie uvedené parametre je možné upraviť pre návrh vlastných MPPT regulátorov nabíjania. Upravte //
-// hodnoty nižšie iba v prípade, že viete, čo robíte. Nižšie uvedené hodnoty boli predkalibrované pre //
-// MPPT regulátory nabíjania navrhnuté spoločnosťou TechBuilder (Angelo S. Casimiro)                            //
-//=================================================================================================//
-bool
-ADS1115_Mode            = 0;          //  KALIBRÁČNY PARAMETER - Pre model ADS1015 ADC použite 1, pre model ADS1115 ADC použite 0
-int
-ADC_GainSelect          = 2,          //  CALIB PARAMETER - ADC Gain Selection (0→±6.144V 3mV/bit, 1→±4.096V 2mV/bit, 2→±2.048V 1mV/bit)
-avgCountVS              = 3,          //  CALIB PARAMETER - Voltage Sensor Average Sampling Count (Recommended: 3)
-avgCountCS              = 4,          //  CALIB PARAMETER - Current Sensor Average Sampling Count (Recommended: 4)
-avgCountTS              = 500;        //  CALIB PARAMETER - Temperature Sensor Average Sampling Count
-float
-inVoltageDivRatio       = 40.2156,    //  CALIB PARAMETER - Input voltage divider sensor ratio (change this value to calibrate voltage sensor)
-outVoltageDivRatio      = 24.5000,    //  CALIB PARAMETER - Output voltage divider sensor ratio (change this value to calibrate voltage sensor)
-vOutSystemMax           = 50.0000,    //  CALIB PARAMETER - 
-cOutSystemMax           = 50.0000,    //  CALIB PARAMETER - 
-ntcResistance           = 9000.00,   //  CALIB PARAMETER - NTC temp sensor's resistance. Change to 10000.00 if you are using a 10k NTC
-voltageDropout          = 1.0000,     //  CALIB PARAMETER - Buck regulator's dropout voltage (DOV is present due to Max Duty Cycle Limit)
-voltageBatteryThresh    = 1.5000,     //  CALIB PARAMETER - Power cuts-off when this voltage is reached (Output V)
-currentInAbsolute       = 31.0000,    //  CALIB PARAMETER - Maximum Input Current The System Can Handle (A - Input)
-currentOutAbsolute      = 50.0000,    //  CALIB PARAMETER - Maximum Output Current The System Can Handle (A - Input)
-PPWM_margin             = 99.5000,    //  CALIB PARAMETER - Minimum Operating Duty Cycle for Predictive PWM (%)
-PWM_MaxDC               = 97.0000,    //  CALIB PARAMETER - Maximum Operating Duty Cycle (%) 90%-97% is good
-efficiencyRate          = 1.0000,     //  CALIB PARAMETER - Theroretical Buck Efficiency (% decimal)
-currentMidPoint         = 2.5250,     //  CALIB PARAMETER - Current Sensor Midpoint (V)
-currentSens             = 0.0000,     //  CALIB PARAMETER - Current Sensor Sensitivity (V/A)
-currentSensV            = 0.0660,     //  CALIB PARAMETER - Current Sensor Sensitivity (mV/A)
-vInSystemMin            = 10.000;     //  CALIB PARAMETER - 
+// Teplotný senzor
+#define TEMP_PIN 34
 
-//===================================== SYSTEM PARAMETERS =========================================//
-// V tejto sekcii nemeňte hodnoty parametrov. Nižšie uvedené hodnoty sú premenné používané systémovými //
-// procesmi. Zmena hodnôt môže poškodiť hardvér MPPT. Prosím, nechajte to tak, ako je! //
-// K týmto premenným však môžete pristupovať na získanie údajov potrebných pre vaše modifikácie.                           //
-//=================================================================================================//
-bool
-buckEnable            = 0,           // SYSTEM PARAMETER - Buck Enable Status
-fanStatus             = 0,           // SYSTEM PARAMETER - Fan activity status (1 = On, 0 = Off)
-bypassEnable          = 0,           // SYSTEM PARAMETER - 
-chargingPause         = 0,           // SYSTEM PARAMETER - 
-lowPowerMode          = 0,           // SYSTEM PARAMETER - 
-buttonRightStatus     = 0,           // SYSTEM PARAMETER -
-buttonLeftStatus      = 0,           // SYSTEM PARAMETER - 
-buttonBackStatus      = 0,           // SYSTEM PARAMETER - 
-buttonSelectStatus    = 0,           // SYSTEM PARAMETER -
-buttonRightCommand    = 0,           // SYSTEM PARAMETER - 
-buttonLeftCommand     = 0,           // SYSTEM PARAMETER - 
-buttonBackCommand     = 0,           // SYSTEM PARAMETER - 
-buttonSelectCommand   = 0,           // SYSTEM PARAMETER -
-settingMode           = 0,           // SYSTEM PARAMETER -
-setMenuPage           = 0,           // SYSTEM PARAMETER -
-boolTemp              = 0,           // SYSTEM PARAMETER -
-flashMemLoad          = 0,           // SYSTEM PARAMETER -  
-confirmationMenu      = 0,           // SYSTEM PARAMETER -      
-WIFI                  = 0,           // SYSTEM PARAMETER - Indikátor povolenia WiFi
-BNC                   = 1,           // SYSTEM PARAMETER - Indikátor nepripojenej batérie 
-REC                   = 0,           // SYSTEM PARAMETER - Indikátor zotavenia z poruchy
-FLV                   = 1,           // SYSTEM PARAMETER - Fatálne nízke napätie systému (nemožnosť obnovenia prevádzky)
-IUV                   = 1,           // SYSTEM PARAMETER - Indikátor podpätia vstupu
-IOV                   = 1,           // SYSTEM PARAMETER - Indikátor prepätia vstupu
-IOC                   = 0,           // SYSTEM PARAMETER - 
-OUV                   = 0,           // SYSTEM PARAMETER - 
-OOV                   = 1,           // SYSTEM PARAMETER - Indikátor prepätia na výstupe
-OOC                   = 1,           // SYSTEM PARAMETER - Indikátor nadprúdu výstupu
-OTE                   = 1;           // SYSTEM PARAMETER - Indikátor nadmernej teploty
-int
-inputSource           = 0,           // SYSTEM PARAMETER - 0 = MPPT nemá zdroj napájania, 1 = MPPT používa solárnu energiu ako zdroj napájania, 2 = MPPT používa batériu ako zdroj napájania
-avgStoreTS            = 0,           // SYSTEM PARAMETER - Teplotný senzor používa neinvazívne priemerovanie, na priemerovanie priemerných hodnôt sa používa akumulátor
-temperature           = 0,           // SYSTEM PARAMETER -
-sampleStoreTS         = 0,           // SYSTEM PARAMETER - TS AVG nth Sample
-pwmMax                = 0,           // SYSTEM PARAMETER -
-pwmMaxLimited         = 0,           // SYSTEM PARAMETER -
-PWM                   = 0,           // SYSTEM PARAMETER - PWM vstreknuté do IR2104 (desatinný ekvivalent)
-PPWM                  = 0,           // SYSTEM PARAMETER - Prípustný limit spodnej hranice PWM
-pwmChannel            = 0,           // SYSTEM PARAMETER -
-batteryPercent        = 0,           // SYSTEM PARAMETER -
-errorCount            = 0,           // SYSTEM PARAMETER -
-menuPage              = 0,           // SYSTEM PARAMETER -
-subMenuPage           = 0,           // SYSTEM PARAMETER -
-ERR                   = 0,           // SYSTEM PARAMETER - Počet prítomných chýb
-conv1                 = 0,           // SYSTEM PARAMETER -
-conv2                 = 0,           // SYSTEM PARAMETER -
-intTemp               = 0;           // SYSTEM PARAMETER -
-float
-VSI                   = 0.0000,      // SYSTEM PARAMETER - Napätie ADC snímača vstupného napätia
-VSO                   = 0.0000,      // SYSTEM PARAMETER - Raw output voltage sensor ADC voltage
-CSI                   = 0.0000,      // SYSTEM PARAMETER - Raw current sensor ADC voltage
-CSI_converted         = 0.0000,      // SYSTEM PARAMETER - Actual current sensor ADC voltage 
-TS                    = 0.0000,      // SYSTEM PARAMETER - Raw temperature sensor ADC value
-powerInput            = 0.0000,      // SYSTEM PARAMETER - Input power (solar power) in Watts
-powerInputPrev        = 0.0000,      // SYSTEM PARAMETER - Previously stored input power variable for MPPT algorithm (Watts)
-powerOutput           = 0.0000,      // SYSTEM PARAMETER - Output power (battery or charing power in Watts)
-energySavings         = 0.0000,      // SYSTEM PARAMETER - Energy savings in fiat currency (Peso, USD, Euros or etc...)
-voltageInput          = 0.0000,      // SYSTEM PARAMETER - Input voltage (solar voltage)
-voltageInputPrev      = 0.0000,      // SYSTEM PARAMETER - Previously stored input voltage variable for MPPT algorithm
-voltageOutput         = 0.0000,      // SYSTEM PARAMETER - Input voltage (battery voltage)
-currentInput          = 0.0000,      // SYSTEM PARAMETER - Output power (battery or charing voltage)
-currentOutput         = 0.0000,      // SYSTEM PARAMETER - Output current (battery or charing current in Amperes)
-TSlog                 = 0.0000,      // SYSTEM PARAMETER - Part of NTC thermistor thermal sensing code
-ADC_BitReso           = 0.0000,      // SYSTEM PARAMETER - Systém detekuje vhodný faktor rozlíšenia bitov pre ADC ADS1015/ADS1115
-daysRunning           = 0.0000,      // SYSTEM PARAMETER - Stores the total number of days the MPPT device has been running since last powered
-Wh                    = 0.0000,      // SYSTEM PARAMETER - Stores the accumulated energy harvested (Watt-Hours)
-kWh                   = 0.0000,      // SYSTEM PARAMETER - Stores the accumulated energy harvested (Kiliowatt-Hours)
-MWh                   = 0.0000,      // SYSTEM PARAMETER - Stores the accumulated energy harvested (Megawatt-Hours)
-loopTime              = 0.0000,      // SYSTEM PARAMETER -
-outputDeviation       = 0.0000,      // SYSTEM PARAMETER - Output Voltage Deviation (%)
-buckEfficiency        = 0.0000,      // SYSTEM PARAMETER - Measure buck converter power conversion efficiency (only applicable to my dual current sensor version)
-floatTemp             = 0.0000,
-vOutSystemMin         = 0.0000;     //  CALIB PARAMETER - 
-unsigned long 
-currentErrorMillis    = 0,           //SYSTEM PARAMETER -
-currentButtonMillis   = 0,           //SYSTEM PARAMETER -
-currentSerialMillis   = 0,           //SYSTEM PARAMETER -
-currentRoutineMillis  = 0,           //SYSTEM PARAMETER -
-currentLCDMillis      = 0,           //SYSTEM PARAMETER - 
-currentLCDBackLMillis = 0,           //SYSTEM PARAMETER - 
-currentWiFiMillis     = 0,           //SYSTEM PARAMETER - 
-currentMenuSetMillis  = 0,           //SYSTEM PARAMETER - 
-prevButtonMillis      = 0,           //SYSTEM PARAMETER -
-prevSerialMillis      = 0,           //SYSTEM PARAMETER -
-prevRoutineMillis     = 0,           //SYSTEM PARAMETER -
-prevErrorMillis       = 0,           //SYSTEM PARAMETER -
-prevWiFiMillis        = 0,           //SYSTEM PARAMETER -
-prevLCDMillis         = 0,           //SYSTEM PARAMETER -
-prevLCDBackLMillis    = 0,           //SYSTEM PARAMETER -
-timeOn                = 0,           //SYSTEM PARAMETER -
-loopTimeStart         = 0,           //SYSTEM PARAMETER - Used for the loop cycle stop watch, records the loop start time
-loopTimeEnd           = 0,           //SYSTEM PARAMETER - Used for the loop cycle stop watch, records the loop end time
-secondsElapsed        = 0;           //SYSTEM PARAMETER - 
+// Tlačidlá (už definované v LCDMenu.ino)
+// #define BUTTON_UP_PIN 32
+// #define BUTTON_DOWN_PIN 33
+// #define BUTTON_ENTER_PIN 25
+// #define BUTTON_BACK_PIN 26
 
-//====================================== MAIN PROGRAM =============================================//
-// TNižšie uvedené kódy obsahujú všetky systémové procesy pre firmvér MPPT. Väčšina z nich sa nazýva //
-// z 8 kariet .ino. Kódy sú príliš dlhé, karty Arduino mi veľmi pomohli s ich organizáciou. //
-// Firmvér beží na dvoch jadrách Arduina ESP32, ako je vidieť na dvoch samostatných pároch nastavení a slučiek void //
-//. Funkcia xTaskCreatePinnedToCore() vo freeRTOS vám umožňuje prístup k //
-// nepoužívanému jadru ESP32 cez Arduino. Áno, vykonáva viacjadrové procesy súčasne!             // 
-//=================================================================================================//
+// ============================================
+// GLOBÁLNE PREMENNÉ
+// ============================================
 
-//================= CORE0: SETUP (DUAL CORE MODE) =====================//
-void coreTwo(void * pvParameters){
- setupWiFi();                                              //TAB#7 - WiFi Initialization
-//================= CORE0: LOOP (DUAL CORE MODE) ======================//
-  while(1){
-    Wireless_Telemetry();                                   //TAB#7 - Wireless telemetry (WiFi & Bluetooth)
-    
-}}
-//================== CORE1: SETUP (DUAL CORE MODE) ====================//
-void setup() { 
+// Senzorické hodnoty
+float panelVoltage = 0.0f;
+float panelCurrent = 0.0f;
+float panelPower = 0.0f;
+float batteryVoltage = 0.0f;
+float batteryCurrent = 0.0f;
+float batteryPower = 0.0f;
+float efficiency = 0.0f;
+float temperature = 25.0f;
+
+// Stavové premenné
+bool overVoltageFlag = false;
+bool underVoltageFlag = false;
+bool overTempFlag = false;
+bool shortCircuitFlag = false;
+bool lowPowerMode = false;
+bool faultCleared = false;
+
+// ============================================
+// EXTERNÉ DEKLARÁCIE
+// ============================================
+
+// Funkcie z jednotlivých súborov
+extern void initSensors();
+extern void readAllSensors();
+extern void calibrateSensors();
+
+extern void runProtectionChecks();
+extern void emergencyShutdown(const char* reason);
+extern void logWarning(const char* message);
+
+extern void initChargingSystem();
+extern void runChargingAlgorithm();
+extern void setBatteryType(BatteryType type);
+extern void setManualPWM(float dutyPercent);
+
+extern void initSystemProcesses();
+extern void runSystemProcesses();
+extern void changeSystemState(SystemState newState);
+
+extern void initTelemetry();
+extern void runTelemetryTasks();
+extern void generateDailyReport();
+
+extern void initWirelessTelemetry();
+extern void runWirelessTelemetry();
+extern void handleWebServer();
+
+extern void initLCDMenu();
+extern void runLCDMenuSystem();
+extern void updateDisplay();
+
+// ============================================
+// SETUP FUNKCIA
+// ============================================
+
+void setup() {
+  // 1. Inicializácia sériovej komunikácie
+  Serial.begin(115200);
+  Serial.println("\n\n=================================");
+  Serial.println("   MPPT REGULATOR - START");
+  Serial.println("=================================");
   
-  //SERIAL INITIALIZATION          
-  Serial.begin(baudRate);                                   //Set serial baud rate
-  Serial.println("> Serial Initialized");                   //Startup message
-  
-  //GPIO PIN INITIALIZATION
-  pinMode(backflow_MOSFET,OUTPUT);                          
-  pinMode(buck_EN,OUTPUT);
-  pinMode(LED,OUTPUT); 
-  pinMode(FAN,OUTPUT);
-  pinMode(TS,INPUT); 
-  pinMode(ADC_ALERT,INPUT);
-  pinMode(buttonLeft,INPUT); 
-  pinMode(buttonRight,INPUT); 
-  pinMode(buttonBack,INPUT); 
-  pinMode(buttonSelect,INPUT); 
-  
-  //PWM INITIALIZATION
-  ledcSetup(pwmChannel,pwmFrequency,pwmResolution);          //Set PWM Parameters
-  ledcAttachPin(buck_IN, pwmChannel);                        //Set pin as PWM
-  ledcWrite(pwmChannel,PWM);                                 //Write PWM value at startup (duty = 0)
-  pwmMax = pow(2,pwmResolution)-1;                           //Get PWM Max Bit Ceiling
-  pwmMaxLimited = (PWM_MaxDC*pwmMax)/100.000;                //Get maximum PWM Duty Cycle (pwm limiting protection)
-  
-  //ADC INITIALIZATION
-  ADC_SetGain();                                             //Sets ADC Gain & Range
-  ads.begin();                                               //Initialize ADC
-
-  //GPIO INITIALIZATION                          
-  buck_Disable();
-
-  //ENABLE DUAL CORE MULTITASKING
-  xTaskCreatePinnedToCore(coreTwo,"coreTwo",10000,NULL,0,&Core2,0);
-  
-  //INITIALIZE AND LIOAD FLASH MEMORY DATA
+  // 2. Inicializácia EEPROM
   EEPROM.begin(512);
-  Serial.println("> FLASH MEMORY: STORAGE INITIALIZED");  //Startup message 
-  initializeFlashAutoload();                              //Load stored settings from flash memory       
-  Serial.println("> FLASH MEMORY: SAVED DATA LOADED");    //Startup message 
+  Serial.println("EEPROM inicializovaná");
+  
+  // 3. Inicializácia GPIO pinov
+  initGPIO();
+  
+  // 4. Inicializácia PWM
+  initPWM();
+  
+  // 5. Inicializácia senzorov
+  initSensors();
+  
+  // 6. Inicializácia systémových procesov
+  initSystemProcesses();
+  
+  // 7. Inicializácia nabíjacieho systému
+  initChargingSystem();
+  
+  // 8. Inicializácia telemetrie
+  initTelemetry();
+  
+  // 9. Inicializácia displeja
+  initLCDMenu();
+  
+  // 10. Inicializácia bezdrôtovej komunikácie
+  initWirelessTelemetry();
+  
+  // 11. Úvodné testy
+  performStartupTests();
+  
+  Serial.println("=================================");
+  Serial.println("   SYSTEM PRIPRAVENY");
+  Serial.println("=================================\n");
+  
+  // Zobrazenie uvítacej obrazovky
+  displayWelcomeMessage();
+}
 
-  //LCD INITIALIZATION
-  if(enableLCD==1){
-    lcd.begin();
-    lcd.setBacklight(HIGH);
-    lcd.setCursor(0,0);
-    lcd.print("MPPT INITIALIZED");
-    lcd.setCursor(0,1);
-    lcd.print("FIRMWARE ");
-    lcd.print(firmwareInfo);    
-    delay(1500);
-    lcd.clear();
+void initGPIO() {
+  Serial.println("Inicializácia GPIO pinov...");
+  
+  // Nastavenie pinov ako výstupy
+  pinMode(LED_PIN, OUTPUT);
+  pinMode(ERROR_LED_PIN, OUTPUT);
+  pinMode(BATTERY_DISCONNECT_PIN, OUTPUT);
+  pinMode(PANEL_DISCONNECT_PIN, OUTPUT);
+  
+  // Počiatočné stavy
+  digitalWrite(LED_PIN, LOW);
+  digitalWrite(ERROR_LED_PIN, LOW);
+  digitalWrite(BATTERY_DISCONNECT_PIN, HIGH);  // Pripojené
+  digitalWrite(PANEL_DISCONNECT_PIN, HIGH);    // Pripojené
+  
+  Serial.println("GPIO inicializované");
+}
+
+void initPWM() {
+  Serial.println("Inicializácia PWM...");
+  
+  // Nastavenie PWM
+  ledcSetup(PWM_CHANNEL, PWM_FREQUENCY, PWM_RESOLUTION);
+  ledcAttachPin(PWM_PIN, PWM_CHANNEL);
+  ledcWrite(PWM_CHANNEL, 0);  // Počiatočná hodnota 0
+  
+  Serial.print("PWM inicializované: ");
+  Serial.print(PWM_FREQUENCY);
+  Serial.print("Hz, ");
+  Serial.print(PWM_RESOLUTION);
+  Serial.println("bit");
+}
+
+void performStartupTests() {
+  Serial.println("Spúšťam štartové testy...");
+  
+  // Rýchly test LED
+  digitalWrite(LED_PIN, HIGH);
+  delay(200);
+  digitalWrite(LED_PIN, LOW);
+  delay(200);
+  digitalWrite(LED_PIN, HIGH);
+  delay(200);
+  digitalWrite(LED_PIN, LOW);
+  
+  // Test PWM (postupne zvyšovať a znižovať)
+  for (int i = 0; i <= 100; i += 10) {
+    ledcWrite(PWM_CHANNEL, i * 10.23);
+    delay(50);
   }
-
-  //SETUP FINISHED
-  Serial.println("> MPPT HAS INITIALIZED");                //Startup message
-
+  for (int i = 100; i >= 0; i -= 10) {
+    ledcWrite(PWM_CHANNEL, i * 10.23);
+    delay(50);
+  }
+  ledcWrite(PWM_CHANNEL, 0);
+  
+  Serial.println("Štartové testy dokončené");
 }
-//================== CORE1: LOOP (DUAL CORE MODE) ======================//
+
+void displayWelcomeMessage() {
+  Serial.println("\n=== MPPT REGULATOR v1.1 ===");
+  Serial.println("Funkcie:");
+  Serial.println("- MPPT algoritmus s adaptívnym krokom");
+  Serial.println("- 4-fázové nabíjanie (Bulk/Absorpcia/Float/Udržba)");
+  Serial.println("- Podpora AGM, LiFePO4, olovených batérií");
+  Serial.println("- Bezdrôtová telemetria (WiFi + Blynk)");
+  Serial.println("- OLED displej s menu systémom");
+  Serial.println("- Komplexné ochrany a diagnostika");
+  Serial.println("- Šetrný režim pre noc");
+  Serial.println("===========================\n");
+}
+
+// ============================================
+// HLAVNÁ SMYČKA (LOOP)
+// ============================================
+
 void loop() {
-  Read_Sensors();         //TAB#2 - Sensor data measurement and computation
-  Device_Protection();    //TAB#3 - Fault detection algorithm  
-  System_Processes();     //TAB#4 - Routine system processes 
-  Charging_Algorithm();   //TAB#5 - Battery Charging Algorithm                    
-  Onboard_Telemetry();    //TAB#6 - Onboard telemetry (USB & Serial Telemetry)
-  LCD_Menu();             //TAB#8 - Low Power Algorithm
+  // Časovač pre hlavnú slučku
+  static unsigned long lastLoopTime = 0;
+  unsigned long currentTime = millis();
+  unsigned long loopInterval = 100;  // 100ms základný cyklus
+  
+  // Iba ak uplynul dostatočný čas
+  if (currentTime - lastLoopTime < loopInterval) {
+    return;
+  }
+  
+  lastLoopTime = currentTime;
+  
+  // === 1. ČÍTANIE SENZOROV (10Hz) ===
+  readAllSensors();
+  
+  // === 2. BEZPEČNOSTNÉ KONTROLY (10Hz) ===
+  runProtectionChecks();
+  
+  // === 3. NABÍJACÍ ALGORITMUS (10Hz) ===
+  runChargingAlgorithm();
+  
+  // === 4. SYSTÉMOVÉ PROCESY (10Hz) ===
+  runSystemProcesses();
+  
+  // === 5. TELEMETRIA (1Hz) ===
+  static unsigned long lastTelemetryTime = 0;
+  if (currentTime - lastTelemetryTime >= 1000) {
+    runTelemetryTasks();
+    lastTelemetryTime = currentTime;
+  }
+  
+  // === 6. BEZDRÔTOVÁ KOMUNIKÁCIA ===
+  runWirelessTelemetry();
+  handleWebServer();
+  
+  // === 7. DISPLEJ A MENU ===
+  runLCDMenuSystem();
+  
+  // === 8. LED INDIKÁCIA ===
+  updateLEDIndication();
+  
+  // === 9. SÉRIOVÁ KOMUNIKÁCIA ===
+  processSerialCommands();
+  
+  // === 10. WATCHDOG ÚDRŽBA ===
+  feedWatchdog();
+  
+  // === 11. DIAGNOSTIKA VÝKONU ===
+  monitorPerformance();
 }
+
+// ============================================
+// POMOCNÉ FUNKCIE
+// ============================================
+
+void updateLEDIndication() {
+  static unsigned long lastLEDUpdate = 0;
+  static bool ledState = false;
+  
+  unsigned long currentTime = millis();
+  
+  // Rýchlosť blikania podľa stavu
+  unsigned long blinkInterval = 1000;  // Štandardne 1Hz
+  
+  if (currentSystemState == STATE_CHARGING) {
+    // Rýchlejšie blikanie pri nabíjaní
+    blinkInterval = 500;
+  } else if (currentSystemState == STATE_FAULT) {
+    // Veľmi rýchle blikanie pri chybe
+    blinkInterval = 200;
+  } else if (lowPowerMode) {
+    // Pomalé blikanie v šetrnom režime
+    blinkInterval = 2000;
+  }
+  
+  // Blikanie LED
+  if (currentTime - lastLEDUpdate >= blinkInterval) {
+    ledState = !ledState;
+    digitalWrite(LED_PIN, ledState);
+    lastLEDUpdate = currentTime;
+  }
+  
+  // Chybová LED
+  digitalWrite(ERROR_LED_PIN, 
+    (overVoltageFlag || underVoltageFlag || overTempFlag || shortCircuitFlag));
+}
+
+void processSerialCommands() {
+  if (Serial.available()) {
+    String command = Serial.readStringUntil('\n');
+    command.trim();
+    
+    if (command.length() > 0) {
+      processCommand(command);
+    }
+  }
+}
+
+void processCommand(String command) {
+  // Rozdelenie príkazu na časti
+  int spaceIndex = command.indexOf(' ');
+  String cmd = command;
+  String param = "";
+  
+  if (spaceIndex != -1) {
+    cmd = command.substring(0, spaceIndex);
+    param = command.substring(spaceIndex + 1);
+  }
+  
+  cmd.toLowerCase();
+  
+  // Spracovanie príkazov
+  if (cmd == "help" || cmd == "?") {
+    printHelp();
+  } else if (cmd == "status") {
+    printSystemStatus();
+  } else if (cmd == "sensors") {
+    printSensorValues();
+  } else if (cmd == "protections") {
+    printProtectionStatus();
+  } else if (cmd == "charging") {
+    printChargingStatus();
+  } else if (cmd == "stats") {
+    generateDailyReport();
+  } else if (cmd == "telemetry") {
+    processTelemetryCommand(param);
+  } else if (cmd == "battery") {
+    setBatteryCommand(param);
+  } else if (cmd == "pwm") {
+    setPWMCommand(param);
+  } else if (cmd == "reboot") {
+    Serial.println("Reboot systému...");
+    delay(1000);
+    ESP.restart();
+  } else if (cmd == "clear") {
+    faultCleared = true;
+    Serial.println("Chyby vyčistené");
+  } else if (cmd == "test") {
+    runTestCommand(param);
+  } else {
+    Serial.print("Neznámy príkaz: ");
+    Serial.println(command);
+    Serial.println("Napíšte 'help' pre zoznam príkazov");
+  }
+}
+
+void printHelp() {
+  Serial.println("\n=== DOSTUPNÉ PRÍKAZY ===");
+  Serial.println("help / ?          - Táto pomoc");
+  Serial.println("status            - Stav systému");
+  Serial.println("sensors           - Hodnoty senzorov");
+  Serial.println("protections       - Stav ochrán");
+  Serial.println("charging          - Stav nabíjania");
+  Serial.println("stats             - Denné štatistiky");
+  Serial.println("telemetry [cmd]   - Telemetria (status/report/export)");
+  Serial.println("battery [type]    - Nastavenie batérie (0=AGM,1=LiFePO4,2=Pb,3=Custom)");
+  Serial.println("pwm [value]       - Manuálne PWM (0-100%)");
+  Serial.println("reboot            - Reboot systému");
+  Serial.println("clear             - Vyčistenie chýb");
+  Serial.println("test [test]       - Testovacie funkcie");
+  Serial.println("=======================\n");
+}
+
+void setBatteryCommand(String param) {
+  if (param.length() > 0) {
+    int type = param.toInt();
+    if (type >= 0 && type <= 3) {
+      setBatteryType((BatteryType)type);
+      Serial.print("Typ batérie nastavený na: ");
+      Serial.println(currentProfile->batteryName);
+    } else {
+      Serial.println("Chyba: Typ batérie musí byť 0-3");
+    }
+  } else {
+    Serial.print("Aktuálny typ batérie: ");
+    Serial.println(currentProfile->batteryName);
+  }
+}
+
+void setPWMCommand(String param) {
+  if (param.length() > 0) {
+    float pwmValue = param.toFloat();
+    if (pwmValue >= 0 && pwmValue <= 100) {
+      setManualPWM(pwmValue);
+    } else {
+      Serial.println("Chyba: PWM musí byť 0-100");
+    }
+  } else {
+    Serial.print("Aktuálne PWM: ");
+    Serial.print(pwmDutyCycle, 1);
+    Serial.println("%");
+  }
+}
+
+void runTestCommand(String param) {
+  if (param == "pwm") {
+    testPWMSequence();
+  } else if (param == "sensors") {
+    testSensors();
+  } else if (param == "adc") {
+    testADC();
+  } else {
+    Serial.println("Dostupné testy: pwm, sensors, adc");
+  }
+}
+
+void testPWMSequence() {
+  Serial.println("Test PWM sekvencie...");
+  for (int i = 0; i <= 100; i += 10) {
+    setManualPWM(i);
+    Serial.print("PWM: ");
+    Serial.print(i);
+    Serial.println("%");
+    delay(500);
+  }
+  setManualPWM(0);
+  Serial.println("Test PWM dokončený");
+}
+
+// ============================================
+// DIAGNOSTICKÉ FUNKCIE
+// ============================================
+
+void monitorPerformance() {
+  static unsigned long lastPerformanceCheck = 0;
+  static unsigned long loopCounter = 0;
+  
+  loopCounter++;
+  
+  // Každých 100 cyklov (10 sekúnd)
+  if (loopCounter >= 100) {
+    unsigned long currentTime = millis();
+    unsigned long elapsed = currentTime - lastPerformanceCheck;
+    
+    // Výpočet zaťaženia
+    float loadPercent = (100.0f * loopCounter * 100.0f) / elapsed;
+    
+    // Výpis iba ak je zaťaženie vysoké
+    if (loadPercent > 80.0f) {
+      Serial.print("VAROVANIE: Vysoké zaťaženie CPU: ");
+      Serial.print(loadPercent, 1);
+      Serial.println("%");
+    }
+    
+    // Reset
+    lastPerformanceCheck = currentTime;
+    loopCounter = 0;
+  }
+}
+
+void feedWatchdog() {
+  // Simulácia watchdog timera
+  static unsigned long lastWatchdog = 0;
+  
+  if (millis() - lastWatchdog > 1000) {
+    // Resetovanie watchdog (v HW by bol watchdog timer)
+    lastWatchdog = millis();
+  }
+  
+  // Kontrola zaseknutia
+  if (millis() - lastWatchdog > 5000) {
+    Serial.println("WATCHDOG: Zaseknutie detekované!");
+    emergencyShutdown("WATCHDOG_TIMEOUT");
+  }
+}
+
+// ============================================
+// EMERGENCY HANDLING
+// ============================================
+
+void emergencyStop() {
+  // Okamžité zastavenie všetkého
+  ledcWrite(PWM_CHANNEL, 0);
+  digitalWrite(BATTERY_DISCONNECT_PIN, LOW);
+  digitalWrite(PANEL_DISCONNECT_PIN, LOW);
+  
+  // Blikanie error LED
+  while (true) {
+    digitalWrite(ERROR_LED_PIN, HIGH);
+    delay(100);
+    digitalWrite(ERROR_LED_PIN, LOW);
+    delay(100);
+  }
+}
+
+// ============================================
+// VÝPIS STAVU SYSTÉMU
+// ============================================
+
+void printSystemStatus() {
+  Serial.println("\n=== STATUS SYSTÉMU ===");
+  Serial.print("Stav: ");
+  Serial.println(getStateName(currentSystemState));
+  Serial.print("Fáza nabíjania: ");
+  Serial.println(getPhaseName(currentChargePhase));
+  Serial.print("Typ batérie: ");
+  Serial.println(currentProfile->batteryName);
+  Serial.print("Režim: ");
+  Serial.println(lowPowerMode ? "ŠETRNÝ" : "NORMÁLNY");
+  Serial.print("WiFi: ");
+  Serial.println(wifiState == WIFI_CONNECTED ? "PRIPOJENÉ" : "ODPOJENÉ");
+  Serial.print("Uptime: ");
+  Serial.print(millis() / 3600000.0f, 1);
+  Serial.println(" hodín");
+  Serial.println("=====================\n");
+}
+
+void printSensorValues() {
+  Serial.println("\n=== HODNOTY SENZOROV ===");
+  Serial.print("Panel: ");
+  Serial.print(panelVoltage, 2);
+  Serial.print("V, ");
+  Serial.print(panelCurrent, 3);
+  Serial.print("A, ");
+  Serial.print(panelPower, 1);
+  Serial.println("W");
+  
+  Serial.print("Batéria: ");
+  Serial.print(batteryVoltage, 2);
+  Serial.print("V, ");
+  Serial.print(batteryCurrent, 3);
+  Serial.print("A, ");
+  Serial.print(batteryPower, 1);
+  Serial.println("W");
+  
+  Serial.print("Účinnosť: ");
+  Serial.print(efficiency, 1);
+  Serial.println("%");
+  
+  Serial.print("Teplota: ");
+  Serial.print(temperature, 1);
+  Serial.println("°C");
+  
+  Serial.print("PWM: ");
+  Serial.print(pwmDutyCycle, 1);
+  Serial.println("%");
+  Serial.println("=======================\n");
+}
+
+// ============================================
+// KONIEC HLAVNÉHO KÓDU
+// ============================================
