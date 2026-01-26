@@ -109,9 +109,9 @@ Adafruit_ADS1115 ads;             //SYSTEM PARAMETER  - ADS1115 ADC Library (By:
 // z e-mailu.            //
 //==================================================================================================//
 char 
-auth[] = "LAzFlyAmK1uiMw4TmVP-04cZC6SyaxBo",   //   POUŽÍVATEĽSKÝ PARAMETER - Zadajte autentifikačný token Blynk (z e-mailu po registrácii)
-ssid[] = "Doma 2,4G",                   //   USER PARAMETER - Enter Your WiFi SSID
-pass[] = "12345";               //   USER PARAMETER - Enter Your WiFi Password
+auth[] = "Blynk token",   //   POUŽÍVATEĽSKÝ PARAMETER - Zadajte autentifikačný token Blynk (z e-mailu po registrácii)
+ssid[] = "Wifi ssid",                   //   USER PARAMETER - Enter Your WiFi SSID
+pass[] = " heslo";               //   USER PARAMETER - Enter Your WiFi Password
 
 //====================================== USER PARAMETERS ==========================================//
 // Nižšie uvedené parametre sú predvolené parametre používané, keď nastavenia MPPT nabíjačky neboli //
