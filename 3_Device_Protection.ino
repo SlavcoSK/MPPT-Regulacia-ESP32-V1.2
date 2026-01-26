@@ -1,36 +1,102 @@
-void backflowControl(){                                                //PV BACKFLOW CONTROL (INPUT MOSFET) 
-  if(output_Mode==0){bypassEnable=1;}                                  //PSU MODE: Force backflow MOSFET on
-  else{                                                                //CHARGER MODE: Force backflow MOSFET on
-    if(voltageInput>voltageOutput+voltageDropout){bypassEnable=1;}     //CHARGER MODE: Normal Condition - Turn on Backflow MOSFET (on by default when not in MPPT charger mode)
-    else{bypassEnable=0;}                                              //CHARGER MODE: Input Undervoltage - Turn off bypass MOSFET and prevent PV Backflow (SS)
+// ---------------------------------------------------------
+// RIADENIE SPÄTNÉHO TOKU PRÚDU (ochrana proti spätnému prúdu)
+// ---------------------------------------------------------
+void backflowControl(){                                                 // Funkcia riadi MOSFET proti spätnému toku prúdu z batérie do panelu
+
+  if(output_Mode == 0){                                                  // PSU režim (napájací zdroj)
+    bypassEnable = 1;                                                    // V PSU režime je MOSFET vždy zapnutý
   }
-  digitalWrite(backflow_MOSFET,bypassEnable);                          //Signal backflow MOSFET GPIO pin   
+  else{                                                                  // Nabíjací režim (CHARGER)
+    if(voltageInput > voltageOutput + voltageDropout){                  // Ak je vstupné napätie vyššie než výstupné + rezerva
+      bypassEnable = 1;                                                  // Povoliť tok energie zo soláru
+    }
+    else{
+      bypassEnable = 0;                                                  // Zakázať MOSFET – ochrana proti spätnému toku (batéria → panel)
+    }
+  }
+
+  digitalWrite(backflow_MOSFET, bypassEnable);                           // Nastavenie GPIO pinu MOSFET-u podľa výpočtu
 }
 
+// ---------------------------------------------------------
+// HLAVNÁ FUNKCIA OCHRÁN ZARIADENIA
+// ---------------------------------------------------------
 void Device_Protection(){
-  //ERROR COUNTER RESET
-  currentRoutineMillis = millis();
-  if(currentErrorMillis-prevErrorMillis>=errorTimeLimit){                                           //Run routine every millisErrorInterval (ms)
-    prevErrorMillis = currentErrorMillis;                                                           //Store previous time
-    if(errorCount<errorCountLimit){errorCount=0;}                                                   //Reset error count if it is below the limit before x milliseconds  
-    else{}                                                                                          // TO ADD: sleep and charging pause if too many errors persists   
-  } 
-  //FAULT DETECTION     
-  ERR = 0;                                                                                          //Reset local error counter
-  backflowControl();                                                                                //Run backflow current protection protocol  
-  if(temperature>temperatureMax)                           {OTE=1;ERR++;errorCount++;}else{OTE=0;}  //OTE - OVERTEMPERATURE: System overheat detected
-  if(currentInput>currentInAbsolute)                       {IOC=1;ERR++;errorCount++;}else{IOC=0;}  //IOC - INPUT  OVERCURRENT: Input current has reached absolute limit
-  if(currentOutput>currentOutAbsolute)                     {OOC=1;ERR++;errorCount++;}else{OOC=0;}  //OOC - OUTPUT OVERCURRENT: Output current has reached absolute limit 
-  if(voltageOutput>voltageBatteryMax+voltageBatteryThresh) {OOV=1;ERR++;errorCount++;}else{OOV=0;}  //OOV - OUTPUT OVERVOLTAGE: Output voltage has reached absolute limit                     
-  if(voltageInput<vInSystemMin&&voltageOutput<vInSystemMin){FLV=1;ERR++;errorCount++;}else{FLV=0;}  //FLV - Fatally low system voltage (unable to resume operation)
 
-  if(output_Mode==0){                                                                               //PSU MODE specific protection protocol
-    REC = 0; BNC = 0;                                                                               //Clear recovery and battery not connected boolean identifiers
-    if(voltageInput<voltageBatteryMax+voltageDropout){IUV=1;ERR++;errorCount++;}else{IUV=0;}        //IUV - INPUT UNDERVOLTAGE: Input voltage is below battery voltage (for psu mode only)                     
+  // -------- RESET POČÍTADLA CHÝB V ČASE --------
+  currentRoutineMillis = millis();                                       // Aktuálny čas v milisekundách
+
+  if(currentErrorMillis - prevErrorMillis >= errorTimeLimit){            // Ak uplynul definovaný časový interval
+    prevErrorMillis = currentErrorMillis;                                 // Uloženie času poslednej kontroly
+
+    if(errorCount < errorCountLimit){                                     // Ak počet chýb neprekročil limit
+      errorCount = 0;                                                     // Vynuluj počítadlo chýb
+    }
+    else{
+      // TODO: tu je priestor na uspatie systému alebo pauzu nabíjania
+    }
   }
-  else{                                                                                             //Charger MODE specific protection protocol
-    backflowControl();                                                                              //Enable backflow current detection & control                           
-    if(voltageOutput<vInSystemMin)                   {BNC=1;ERR++;}      else{BNC=0;}               //BNC - BATTERY NOT CONNECTED (for charger mode only, does not treat BNC as error when not under MPPT mode)
-    if(voltageInput<voltageBatteryMax+voltageDropout){IUV=1;ERR++;REC=1;}else{IUV=0;}               //IUV - INPUT UNDERVOLTAGE: Input voltage is below max battery charging voltage (for charger mode only)     
-  } 
+
+  // -------- DETEKCIA PORÚCH --------
+  ERR = 0;                                                               // Lokálny počet chýb v tomto cykle
+
+  backflowControl();                                                      // Spustenie ochrany proti spätnému prúdu
+
+  // --- TEPLOTNÁ OCHRANA ---
+  if(temperature > temperatureMax){                                      // Ak teplota prekročí maximum
+    OTE = 1;                                                             // Nastav príznak prehriatia
+    ERR++;                                                               // Zvýš lokálny počet chýb
+    errorCount++;                                                        // Zvýš globálny počet chýb
+  }
+  else{ OTE = 0; }                                                       // Inak je teplota v poriadku
+
+  // --- VSTUPNÝ NADPRÚD ---
+  if(currentInput > currentInAbsolute){                                  // Ak vstupný prúd prekročí absolútny limit
+    IOC = 1; ERR++; errorCount++;                                        // Nastav chybu nadprúdu
+  }
+  else{ IOC = 0; }
+
+  // --- VÝSTUPNÝ NADPRÚD ---
+  if(currentOutput > currentOutAbsolute){                                // Ak výstupný prúd prekročí limit
+    OOC = 1; ERR++; errorCount++;                                        // Aktivuj ochranu
+  }
+  else{ OOC = 0; }
+
+  // --- PREPÄTIE NA BATÉRII ---
+  if(voltageOutput > voltageBatteryMax + voltageBatteryThresh){          // Ak je napätie batérie príliš vysoké
+    OOV = 1; ERR++; errorCount++;                                        // Prepäťová ochrana
+  }
+  else{ OOV = 0; }
+
+  // --- FATÁLNE NÍZKE NAPÄTIE ---
+  if(voltageInput < vInSystemMin && voltageOutput < vInSystemMin){       // Ak vstup aj výstup sú pod minimom
+    FLV = 1; ERR++; errorCount++;                                        // Kritický stav – systém nemôže fungovať
+  }
+  else{ FLV = 0; }
+
+  // -------- OCHRANY ŠPECIFICKÉ PRE REŽIM --------
+  if(output_Mode == 0){                                                  // PSU MODE
+    REC = 0;                                                             // Reset príznaku obnovy
+    BNC = 0;                                                             // Batéria nie je relevantná v PSU režime
+
+    if(voltageInput < voltageBatteryMax + voltageDropout){               // Ak vstupné napätie klesne pod úroveň batérie
+      IUV = 1; ERR++; errorCount++;                                      // Podpäťová ochrana vstupu
+    }
+    else{ IUV = 0; }
+  }
+  else{                                                                  // CHARGER MODE
+    backflowControl();                                                    // Opätovná kontrola spätného toku
+
+    if(voltageOutput < vInSystemMin){                                    // Ak nie je detekované napätie batérie
+      BNC = 1; ERR++;                                                    // Batéria nie je pripojená
+    }
+    else{ BNC = 0; }
+
+    if(voltageInput < voltageBatteryMax + voltageDropout){               // Ak solár nedokáže nabiť batériu
+      IUV = 1;                                                           // Podpäťová ochrana
+      ERR++;
+      REC = 1;                                                           // Povolenie obnovy po zlepšení podmienok
+    }
+    else{ IUV = 0; }
+  }
 }
