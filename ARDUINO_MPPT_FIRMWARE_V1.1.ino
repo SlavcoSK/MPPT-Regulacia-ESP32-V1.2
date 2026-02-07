@@ -361,10 +361,11 @@ void setup() {
 }
 //================== CORE1: LOOP (DUAL CORE MODE) ======================//
 void loop() {
-  Read_Sensors();         //TAB#2 - Sensor data measurement and computation
-  Device_Protection();    //TAB#3 - Fault detection algorithm  
+  // Read_Sensors();         //TAB#2 - Sensor data measurement and computation
+  // Device_Protection();    //TAB#3 - Fault detection algorithm  
   System_Processes();     //TAB#4 - Routine system processes 
-  Charging_Algorithm();   //TAB#5 - Battery Charging Algorithm                    
+  // Charging_Algorithm();   //TAB#5 - Battery Charging Algorithm                    
   Onboard_Telemetry();    //TAB#6 - Onboard telemetry (USB & Serial Telemetry)
   LCD_Menu();             //TAB#8 - Low Power Algorithm
+  delay(100);
 }
